@@ -8,5 +8,6 @@ import '@fontsource/nunito-sans/latin-700.css';
 import '@fontsource/nunito-sans/latin-800.css';
 import '@fontsource/nunito-sans/latin-900.css';
 import './styles.css';
+import './game-feedback.css';
 createRoot(document.getElementById('root')!).render(<App/>);
 if('serviceWorker' in navigator && import.meta.env.PROD){window.addEventListener('load',()=>{void navigator.serviceWorker.register('./sw.js').catch(()=>{});});}

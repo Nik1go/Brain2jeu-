@@ -12,7 +12,7 @@ npm run dev
 Ouvrir l’adresse affichée par Vite. Pour tester sur un téléphone du même réseau : `npm run dev -- --host 0.0.0.0`, puis ouvrir l’adresse IP locale du PC avec le port indiqué. Le pare-feu doit autoriser le serveur local.
 
 ```sh
-npm test         # 27 tests du moteur et des records
+npm test         # 32 tests du moteur et des records
 npm run build   # vérification TypeScript + dist de production
 npm run preview # aperçu de la version compilée
 ```
@@ -20,12 +20,12 @@ npm run preview # aperçu de la version compilée
 ## Fonctionnement
 
 - **Survie** : départ au niveau 1 ; 3 bonnes réponses non nécessairement consécutives pour monter ; 2 erreurs consécutives pour descendre ; fin à 3 erreurs au total. Le score reste acquis.
-- **Défi** : 120 secondes, niveau fixe choisi parmi les niveaux débloqués en Survie. Le temps comprend observation et réponse, et est suspendu pendant les corrections.
+- **Défi** : 90 secondes, niveau fixe choisi parmi les niveaux débloqués en Survie. Le chronomètre affiche les secondes restantes. Le temps comprend observation et réponse, et est suspendu pendant les corrections.
 - **Observation** : 3 secondes, sans balle ; miroirs ensuite retirés du rendu. Un toucher sur une sortie répond immédiatement.
-- **Correction** : durée fixe de 1 250 ms pour les deux issues. En cas d’erreur, les miroirs et le trajet correct réapparaissent.
+- **Correction** : durée fixe de 1 750 ms pour les deux issues. La balle rejoue le trajet réel avec les miroirs pendant 1 100 ms, puis un ✓ vert ou une croix rouge apparaît pendant 650 ms. Les points gagnés apparaissent avec un « + points » animé au verdict.
 - **Difficulté** : 18 niveaux configurables, plateau limité à 6×6 ; nombre minimal de réflexions demandé croissant. Les positions de miroirs sont uniques et les parcours sont vérifiés avec détection de cycles.
 - **Score** : `100 + 25 × (niveau − 1) + max(0, 50 − 5 × floor(secondes de réponse))`.
-- **Records** : Survie séparée du Défi, et Défi séparé par niveau. Le tutoriel ne produit aucun résultat.
+- **Records** : Survie séparée du Défi, et Défi séparé par niveau. Les anciens records Défi 120 s sont archivés séparément des nouveaux records 90 s. Le tutoriel ne produit aucun résultat.
 - **Données locales** : niveaux débloqués, tutoriel, préférences, records et 100 dernières parties. Pas de compte, de serveur de données ou d’analytics. Les statistiques et jours de jeu sont calculés sur cet historique. Aucune synchronisation entre appareils.
 - Le chronomètre ne propose pas de pause. Quitter abandonne la partie ; un onglet en arrière-plan ne met pas un Défi en pause.
 

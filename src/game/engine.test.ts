@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { answerGame, CHALLENGE_MS, CORRECTION_MS, elapse, generateBoard, LEVELS, newGame, newSession, pointsFor, recordAnswer, reflect, simulate, tickGame } from './engine';
+import { answerGame, CHALLENGE_MS, CORRECTION_MS, elapse, generateBoard, LEVELS, newGame, newSession, PATH_REPLAY_MS, pointsFor, positionOnPath, recordAnswer, reflect, simulate, tickGame } from './engine';
 import type { Direction, Mirror, Port } from './engine';
-import { emptyProgress, finishSession } from '../platform/storage';
+import { emptyProgress, finishSession, loadProgress, saveProgress, STORAGE_KEY } from '../platform/storage';
 
 describe('réflexions et simulation',()=>{
  it.each([
@@ -68,17 +68,17 @@ describe('score et Défi',()=>{
    g=tickGame(g,3000);expect(g.phase).toBe('answer');g=answerGame(g,g.board.exit,4000);expect(g.session.score).toBe(145);
  });
  it('compte observation + réponse et suspend le temps pendant la correction',()=>{
-   let g=newGame('challenge',2,0);g=tickGame(g,3000);g=answerGame(g,g.board.exit,4500);expect(g.session.remainingMs).toBe(115500);
-   g=tickGame(g,4500+CORRECTION_MS);expect(g.phase).toBe('observe');expect(g.session.remainingMs).toBe(115500);
-   g=tickGame(g,4500+CORRECTION_MS+1000);expect(g.session.remainingMs).toBe(114500);
+   let g=newGame('challenge',2,0);g=tickGame(g,3000);g=answerGame(g,g.board.exit,4500);expect(g.session.remainingMs).toBe(CHALLENGE_MS-4500);
+   g=tickGame(g,4500+CORRECTION_MS);expect(g.phase).toBe('observe');expect(g.session.remainingMs).toBe(CHALLENGE_MS-4500);
+   g=tickGame(g,4500+CORRECTION_MS+1000);expect(g.session.remainingMs).toBe(CHALLENGE_MS-5500);
  });
  it('ignore un toucher au moment où le chronomètre expire',()=>{
    let g=newGame('challenge',1,0);g=tickGame(g,3000);g=answerGame(g,g.board.exit,CHALLENGE_MS);
    expect(g.phase).toBe('over');expect(g.session.answers).toBe(0);
  });
- it('ne suspend que 1250 ms même si un onglet manque les images de correction',()=>{
+ it('ne suspend que la correction même si un onglet manque les images',()=>{
    let g=tickGame(newGame('challenge',1,0),3000);g=answerGame(g,g.board.exit,4000);
-   g=tickGame(g,10250);expect(g.phase).toBe('answer');expect(g.session.remainingMs).toBe(111000);
+   g=tickGame(g,4000+CORRECTION_MS+5000);expect(g.phase).toBe('answer');expect(g.session.remainingMs).toBe(CHALLENGE_MS-9000);
    g=tickGame(g,130000);expect(g.phase).toBe('over');expect(g.session.answers).toBe(1);
  });
  it('utilise une durée de correction identique pour une bonne et une mauvaise réponse',()=>{
@@ -93,5 +93,52 @@ describe('records',()=>{
    expect(p.survivalBest).toBe(500);expect(p.challengeBest).toEqual({'1':300,'2':800});expect(p.history).toHaveLength(3);
    expect(finishSession(p,{...newSession('survival'),score:500}).newRecord).toBe(false);
    expect(finishSession(p,{...newSession('survival'),score:501}).newRecord).toBe(true);
+ });
+});
+describe('rejeu visuel et progression complète',()=>{
+ it('déplace la balle à vitesse constante et tourne aux miroirs',()=>{
+   const path=[{x:0,y:0},{x:2,y:0},{x:2,y:2}];
+   expect(positionOnPath(path,-1)).toEqual(path[0]);
+   expect(positionOnPath(path,.25)).toEqual({x:1,y:0});
+   expect(positionOnPath(path,.5)).toEqual({x:2,y:0});
+   expect(positionOnPath(path,.75)).toEqual({x:2,y:1});
+   expect(positionOnPath(path,2)).toEqual(path[2]);
+ });
+ it('rejoue aussi une bonne réponse avant le verdict et refuse un second toucher',()=>{
+   let g=tickGame(newGame('survival',1,0),3000);g=answerGame(g,g.board.exit,3500);
+   expect(g.wasCorrect).toBe(true);expect(g.pointsEarned).toBe(150);
+   const during=tickGame(g,3500+PATH_REPLAY_MS-1);expect(during.phase).toBe('feedback');
+   expect(answerGame(during,g.board.exit,3500+PATH_REPLAY_MS).session.answers).toBe(1);
+ });
+ it('passe au plateau du niveau suivant après trois bonnes manches complètes',()=>{
+   let now=0,g=newGame('survival',1,now);
+   for(let i=0;i<3;i++){
+     now+=3000;g=tickGame(g,now);g=answerGame(g,g.board.exit,now+500);
+     expect(g.roundLevel).toBe(1);
+     now+=500+CORRECTION_MS;g=tickGame(g,now);
+   }
+   expect(g.session.level).toBe(2);expect(g.roundLevel).toBe(2);expect(g.board.mirrors).toHaveLength(2);
+   expect(g.session.levelCorrect).toBe(0);expect(g.session.score).toBe(450);
+   now+=3000;g=tickGame(g,now);g=answerGame(g,g.board.exit,now+500);
+   expect(g.pointsEarned).toBe(175);
+ });
+ it('augmente la récompense à chaque ajout de miroir ou agrandissement de grille',()=>{
+   LEVELS.slice(1).forEach((_,i)=>expect(pointsFor(i+2,1000)).toBeGreaterThan(pointsFor(i+1,1000)));
+   expect(CHALLENGE_MS).toBe(90000);
+ });
+ it('archive les records 120 s en conservant les progrès et sépare les nouveaux records 90 s',()=>{
+   const data=new Map<string,string>();
+   const previous=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+   Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>data.get(key)??null,setItem:(key:string,value:string)=>data.set(key,value)}});
+   try{
+     const old={...emptyProgress(),unlocked:5,tutorialDone:true,survivalBest:900,challengeBest:{'2':1000},challengeDurationMs:undefined,legacyChallengeBest:undefined};
+     data.set(STORAGE_KEY,JSON.stringify(old));const migrated=loadProgress();
+     expect(migrated.unlocked).toBe(5);expect(migrated.tutorialDone).toBe(true);expect(migrated.survivalBest).toBe(900);
+     expect(migrated.challengeBest).toEqual({});expect(migrated.legacyChallengeBest).toEqual({'2':1000});
+     const saved=finishSession(migrated,{...newSession('challenge',2),score:175});expect(saved.firstRecord).toBe(true);
+     saveProgress(saved.progress);const reloaded=loadProgress();
+     expect(reloaded.challengeBest).toEqual({'2':175});expect(reloaded.legacyChallengeBest).toEqual({'2':1000});
+     expect(reloaded.history[0].durationMs).toBe(90000);
+   }finally{if(previous)Object.defineProperty(globalThis,'localStorage',previous);else Reflect.deleteProperty(globalThis,'localStorage');}
  });
 });

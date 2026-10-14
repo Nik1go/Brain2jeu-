@@ -9,8 +9,10 @@ export const LEVELS = [
   [5,8], [5,9], [5,10], [6,10], [6,11], [6,12], [6,13], [6,14], [6,15],
 ].map(([size, mirrors]) => ({ size, mirrors }));
 export const OBSERVATION_MS = 3000;
-export const CORRECTION_MS = 1250;
-export const CHALLENGE_MS = 120_000;
+export const PATH_REPLAY_MS = 1100;
+export const VERDICT_MS = 650;
+export const CORRECTION_MS = PATH_REPLAY_MS + VERDICT_MS;
+export const CHALLENGE_MS = 90_000;
 export const samePort = (a: Port, b: Port) => a.side === b.side && a.index === b.index;
 export const reflect = (direction: Direction, slope: Mirror['slope']): Direction => {
   const map: Record<Mirror['slope'], Record<Direction, Direction>> = {
@@ -22,6 +24,17 @@ export const reflect = (direction: Direction, slope: Mirror['slope']): Direction
 export function portPoint(port: Port, size: number): Point {
   const v = port.index + .5;
   return port.side === 'top' ? { x:v,y:-.25 } : port.side === 'bottom' ? { x:v,y:size+.25 } : port.side === 'left' ? { x:-.25,y:v } : { x:size+.25,y:v };
+}
+// Constant speed along the real route, including the turns at mirror centers.
+export function positionOnPath(path: Point[], progress: number): Point {
+  if (!path.length) return {x:0,y:0};
+  const lengths=path.slice(1).map((p,i)=>Math.hypot(p.x-path[i].x,p.y-path[i].y));
+  let remaining=lengths.reduce((sum,length)=>sum+length,0)*Math.max(0,Math.min(1,progress));
+  for(let i=0;i<lengths.length;i++){
+    if(remaining<=lengths[i]&&lengths[i]>0){const t=remaining/lengths[i];return {x:path[i].x+(path[i+1].x-path[i].x)*t,y:path[i].y+(path[i+1].y-path[i].y)*t};}
+    remaining-=lengths[i];
+  }
+  return path[path.length-1];
 }
 export function simulate(size: number, mirrors: Mirror[], entry: Port): { exit: Port; path: Point[]; hits: number } | null {
   let row = entry.side === 'top' ? 0 : entry.side === 'bottom' ? size-1 : entry.index;
@@ -106,10 +119,11 @@ export function elapse(session: Session, deltaMs: number): Session {
 export type Game = {
   session: Session; board: Board; phase: 'observe'|'answer'|'feedback'|'over';
   phaseAt: number; lastAt: number; responseAt: number; selected: Port|null; wasCorrect: boolean;
+  pointsEarned: number; roundLevel: number;
 };
 export function newGame(mode: Mode,level: number,now: number): Game {
   const session=newSession(mode,level);
-  return {session,board:generateBoard(session.level),phase:'observe',phaseAt:now,lastAt:now,responseAt:0,selected:null,wasCorrect:false};
+  return {session,board:generateBoard(session.level),phase:'observe',phaseAt:now,lastAt:now,responseAt:0,selected:null,wasCorrect:false,pointsEarned:0,roundLevel:session.level};
 }
 export function tickGame(game: Game, now: number): Game {
   if (game.phase==='over') return game;
@@ -121,7 +135,7 @@ export function tickGame(game: Game, now: number): Game {
     const session=elapse(game.session,Math.max(0,now-Math.max(game.lastAt,correctionEnds)));
     if(session.over)return {...game,session,lastAt:now,phase:'over'};
     const answering=now-correctionEnds>=OBSERVATION_MS;
-    return {...game,session,board:generateBoard(session.level),phase:answering?'answer':'observe',phaseAt:answering?now:correctionEnds,lastAt:now,responseAt:answering?now:0,selected:null};
+    return {...game,session,board:generateBoard(session.level),phase:answering?'answer':'observe',phaseAt:answering?now:correctionEnds,lastAt:now,responseAt:answering?now:0,selected:null,pointsEarned:0,roundLevel:session.level};
   }
   const delta=Math.max(0,now-game.lastAt);
   const session=elapse(game.session,delta);
@@ -134,5 +148,6 @@ export function answerGame(game: Game, port: Port, now: number): Game {
   const g=tickGame(game,now);
   if (g.phase!=='answer') return g;
   const wasCorrect=samePort(port,g.board.exit);
-  return {...g,session:recordAnswer(g.session,wasCorrect,now-g.responseAt),phase:'feedback',phaseAt:now,selected:port,wasCorrect};
+  const session=recordAnswer(g.session,wasCorrect,now-g.responseAt);
+  return {...g,session,phase:'feedback',phaseAt:now,selected:port,wasCorrect,pointsEarned:session.score-g.session.score};
 }
