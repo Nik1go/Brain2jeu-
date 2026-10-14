@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, BarChart3, Check, ChevronRight, Clock3, Eye, Flame, Gamepad2, Heart, HelpCircle, Infinity as InfinityIcon, Lightbulb, LockKeyhole, MonitorSmartphone, Settings2, ShieldCheck, Sparkles, Star, Target, Trophy, UserRound, Volume2, X, Zap } from 'lucide-react';
 import { Brain, MathArt, MirrorsArt, TrainArt, ZipArt } from './components/Art';
 import { Board } from './components/Board';
-import { answerGame, CHALLENGE_MS, LEVELS, newGame, PATH_REPLAY_MS, pointsFor, simulate, tickGame } from './game/engine';
+import { answerGame, CHALLENGE_MS, LEVELS, newGame, PATH_REPLAY_MS, pointsFor, simulate, tickGame, VERDICT_START_MS } from './game/engine';
 import type { Board as BoardData, Mode, Port, Session } from './game/engine';
 import { finishSession, loadProgress, saveProgress } from './platform/storage';
 import type { Progress } from './platform/storage';
@@ -89,7 +89,7 @@ function GameView({mode,level,sound,reducedMotion,onUnlock,onFinish,onExit}:{mod
   useEffect(()=>{const query=window.matchMedia('(prefers-reduced-motion: reduce)');const change=()=>setSystemReduced(query.matches);query.addEventListener('change',change);return()=>query.removeEventListener('change',change);},[]);
   const feedback=game.phase==='feedback';
   const feedbackElapsed=game.lastAt-game.phaseAt;
-  const verdict=feedback&&feedbackElapsed>=PATH_REPLAY_MS;
+  const verdict=feedback&&feedbackElapsed>=VERDICT_START_MS;
   const calm=reducedMotion||systemReduced;
   const replayProgress=feedback?(calm?1:Math.min(1,feedbackElapsed/PATH_REPLAY_MS)):undefined;
   const displayedScore=feedback&&!verdict?game.session.score-game.pointsEarned:game.session.score;

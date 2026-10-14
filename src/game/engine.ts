@@ -10,8 +10,10 @@ export const LEVELS = [
 ].map(([size, mirrors]) => ({ size, mirrors }));
 export const OBSERVATION_MS = 3000;
 export const PATH_REPLAY_MS = 1100;
+export const PATH_HOLD_MS = 450;
+export const VERDICT_START_MS = PATH_REPLAY_MS + PATH_HOLD_MS;
 export const VERDICT_MS = 650;
-export const CORRECTION_MS = PATH_REPLAY_MS + VERDICT_MS;
+export const CORRECTION_MS = VERDICT_START_MS + VERDICT_MS;
 export const CHALLENGE_MS = 90_000;
 export const samePort = (a: Port, b: Port) => a.side === b.side && a.index === b.index;
 export const reflect = (direction: Direction, slope: Mirror['slope']): Direction => {
