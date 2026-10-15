@@ -1,0 +1,104 @@
+.train-error-frame {
+  position: absolute;
+  inset: 1px;
+  z-index: 3;
+  border: 3px solid #BA3529;
+  border-radius: inherit;
+  box-shadow: inset 0 0 26px #C6382840;
+  pointer-events: none;
+  animation: train-error-frame var(--train-failure-duration) ease-out both;
+}
+.train-failure-status {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 22px);
+  transform: translateX(-50%);
+  z-index: 4;
+  pointer-events: none;
+}
+.train-failure-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px 10px 10px;
+  border: 1px solid #D89A86;
+  border-radius: 15px;
+  background: #FFF7EBF5;
+  color: #9E2E26;
+  box-shadow: 0 5px 17px #642F2526;
+  animation: train-error-notice var(--train-failure-duration) ease-out both;
+}
+.train-failure-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #BA3529;
+  color: white;
+  flex-shrink: 0;
+}
+.train-failure-toast strong { display: block; font-family: var(--heading); font-size: 15px; font-weight: 900; }
+.train-failure-toast small { display: block; font-size: 9px; line-height: 1.5; margin-top: 2px; color: #8A5041; }
+.station-feedback.station-feedback-error { animation: train-station-error var(--train-failure-duration) ease-out both; }
+.station-error-ring { animation: train-error-ring .65s ease-out both; }
+.station-error-motion { animation: train-station-shake .36s ease-out both; }
+.station-error-badge { animation: train-error-badge .35s ease-out both; }
+.train-hud-errors.fresh-error > span, .train-hud-errors.fresh-error > strong { color: #AD3026; }
+.train-error-count { animation: train-error-count .4s ease-out both; }
+
+@keyframes train-error-frame {
+  0% { opacity: .25; }
+  12%, 45% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes train-error-notice {
+  0% { opacity: 0; transform: translateY(-9px) scale(.94); }
+  14%, 78% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes train-station-error {
+  0% { opacity: .4; }
+  10%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes train-error-ring {
+  from { opacity: .9; transform: scale(.9); }
+  to { opacity: 0; transform: scale(1.35); }
+}
+@keyframes train-station-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+@keyframes train-error-badge {
+  0% { opacity: 0; transform: scale(.5); }
+  65% { opacity: 1; transform: scale(1.14); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes train-error-count {
+  35% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+[data-paused="true"] .train-error-frame,
+[data-paused="true"] .train-failure-toast,
+[data-paused="true"] .station-feedback,
+[data-paused="true"] .station-error-ring,
+[data-paused="true"] .station-error-motion,
+[data-paused="true"] .station-error-badge,
+[data-paused="true"] .train-error-count { animation-play-state: paused; }
+
+.reduce-motion .train-error-frame,
+.reduce-motion .train-failure-toast,
+.reduce-motion .station-feedback.station-feedback-error,
+.reduce-motion .station-error-ring,
+.reduce-motion .station-error-motion,
+.reduce-motion .station-error-badge,
+.reduce-motion .train-error-count { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .train-error-frame, .train-failure-toast, .station-feedback.station-feedback-error,
+  .station-error-ring, .station-error-motion, .station-error-badge, .train-error-count { animation: none; }
+}

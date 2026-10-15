@@ -5,13 +5,15 @@ import { advanceTrains, newTrainGame, setTrainPaused, toggleJunction } from './s
 import type { TrainGame } from './simulation';
 import { newTrainClock, pauseTrainClock, tickTrainClock } from './time';
 import { TrainBoard } from './TrainBoard';
-export function TrainPlay({ level, previous, onGenerated, onFinish, onQuit, onRestart, sound, reducedMotion }: {
+import type { TrainAudio } from './audio';
+import { deliveryCue, recentFailure } from './feedback';
+export function TrainPlay({ level, previous, onGenerated, onFinish, onQuit, onRestart, sound, audio, reducedMotion }: {
   level: number; previous: { signature?: string; colors?: string[] }; onGenerated: (game: TrainGame) => void;
-  onFinish: (game: TrainGame, id: string) => void; onQuit: () => void; onRestart: () => void; sound: boolean; reducedMotion: boolean;
+  onFinish: (game: TrainGame, id: string) => void; onQuit: () => void; onRestart: () => void; sound: boolean; audio: TrainAudio; reducedMotion: boolean;
 }) {
   const [game, setGame] = useState(() => newTrainGame(level, { previousSignature: previous.signature, previousColors: previous.colors }));
   const clock = useRef(newTrainClock(performance.now())), id = useRef(crypto.randomUUID()), done = useRef(false);
-  const initialGame = useRef(game), finish = useRef(onFinish), sounded = useRef(0), audio = useRef<AudioContext | null>(null);
+  const initialGame = useRef(game), finish = useRef(onFinish), sounded = useRef(0);
   finish.current = onFinish;
   useEffect(() => { onGenerated(initialGame.current); }, []);
   useEffect(() => {
@@ -20,32 +22,31 @@ export function TrainPlay({ level, previous, onGenerated, onFinish, onQuit, onRe
     raf = requestAnimationFrame(frame); return () => cancelAnimationFrame(raf);
   }, []);
   useEffect(() => {
-    if (game.over && !done.current) { done.current = true; finish.current(game, id.current); }
-    if (game.deliveries.length > sounded.current && sound && audio.current) {
-      try { const context = audio.current, oscillator = context.createOscillator(), gain = context.createGain(); oscillator.connect(gain); gain.connect(context.destination); oscillator.frequency.value = game.deliveries.at(-1)?.correct ? 740 : 220; gain.gain.setValueAtTime(.035, context.currentTime); gain.gain.exponentialRampToValueAtTime(.001, context.currentTime + .16); oscillator.start(); oscillator.stop(context.currentTime + .17); } catch { /* Optional audio. */ }
-    }
+    const cue = deliveryCue(game, sounded.current);
+    if (sound && cue) audio.play(cue === 'success');
     sounded.current = game.deliveries.length;
-  }, [game, sound]);
-  useEffect(() => () => { void audio.current?.close(); }, []);
-  const pause = (paused: boolean) => { clock.current = pauseTrainClock(clock.current, paused, performance.now()); const elapsed = clock.current.elapsedMs; setGame(g => setTrainPaused(g, paused, elapsed)); };
+    if (game.over && !done.current) { done.current = true; finish.current(game, id.current); }
+  }, [game, sound, audio]);
+  const pause = (paused: boolean) => { if (!paused && sound) audio.unlock(); clock.current = pauseTrainClock(clock.current, paused, performance.now()); const elapsed = clock.current.elapsedMs; setGame(g => setTrainPaused(g, paused, elapsed)); };
   useEffect(() => {
     if (game.paused) return;
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); pause(true); } };
     window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
   }, [game.paused]);
   const toggle = (junction: number) => {
-    if (sound) { try { audio.current ??= new AudioContext(); void audio.current.resume(); } catch { /* Optional. */ } }
+    if (sound) audio.unlock();
     clock.current = tickTrainClock(clock.current, performance.now()); const elapsed = clock.current.elapsedMs;
     setGame(g => toggleJunction(g, junction, elapsed));
   };
   const seconds = Math.max(0, Math.ceil((TRAIN_RULES.durationMs - game.elapsedMs) / 1000));
   const draining = game.elapsedMs >= TRAIN_RULES.durationMs;
-  return <main className={`train-play ${reducedMotion ? 'reduce-motion' : ''}`} data-phase={draining ? 'draining' : 'running'}>
+  const failure = recentFailure(game);
+  return <main className={`train-play ${reducedMotion ? 'reduce-motion' : ''}`} data-phase={draining ? 'draining' : 'running'} data-paused={game.paused}>
     <header className="train-hud">
       <div className="train-hud-level"><TrainFront size={16} /><span>NIVEAU<strong>{String(level).padStart(2, '0')}</strong></span></div>
       <div className="train-hud-score"><span>SCORE</span><strong>{game.score.toLocaleString('fr-FR')}</strong></div>
       <div className={`train-hud-clock ${seconds <= 15 ? 'urgent' : ''}`} role="timer" aria-label={draining ? '0 seconde, derniers trains en route' : `${seconds} secondes restantes`}><Clock3 size={16} /><strong>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</strong>{draining && <span className="train-draining">Derniers trains</span>}</div>
-      <div className={`train-hud-errors ${game.errors > TRAIN_RULES.maxErrors ? 'over-limit' : ''}`} aria-label={`${game.errors} fautes, maximum 3 pour réussir`}><span>FAUTES</span><strong>{game.errors}<small> / 3</small></strong></div>
+      <div className={`train-hud-errors ${game.errors > TRAIN_RULES.maxErrors ? 'over-limit' : ''} ${failure ? 'fresh-error' : ''}`} aria-label={`${game.errors} fautes, maximum 3 pour réussir`}><span>FAUTES</span><strong key={game.errors} className={failure ? 'train-error-count' : ''}>{game.errors}<small> / 3</small></strong></div>
       <button className="train-pause-button" aria-label="Mettre la partie en pause" onClick={() => pause(true)}><Pause size={19} fill="currentColor" /></button>
     </header>
     <div className="train-play-field"><TrainBoard game={game} onToggle={toggle} interactive={!game.paused} /></div>

@@ -24,6 +24,7 @@ export const TRAIN_RULES = {
   phaseMultipliers: [1.15, 1, .9, .8],
   absoluteMinimumSeconds: 1.8,
   feedbackMs: 750,
+  failureFeedbackMs: 1_400,
 } as const;
 export const TRAIN_WAVE_RULES = {
   minimumGapMs: 1_900,

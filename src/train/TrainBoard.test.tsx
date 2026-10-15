@@ -5,7 +5,8 @@ import { TrainExperience } from './TrainExperience';
 import { newTrainGame } from './simulation';
 import { emptyTrainProgress } from './storage';
 import { TrainPlay } from './TrainPlay';
-import { TRAIN_COLORS } from './config';
+import { TRAIN_COLORS, TRAIN_RULES } from './config';
+import { createTrainAudio } from './audio';
 
 describe('interface Petit train', () => {
   it('expose de vrais boutons binaires et dessine les rails actifs sans flèches', () => {
@@ -25,7 +26,7 @@ describe('interface Petit train', () => {
     expect(html).toContain('2 minutes');
   });
   it('affiche la pause et désactive les aiguillages du plateau en pause', () => {
-    const html = renderToStaticMarkup(<TrainPlay level={3} previous={{}} onGenerated={() => {}} onFinish={() => {}} onQuit={() => {}} onRestart={() => {}} sound={false} reducedMotion={false} />);
+    const html = renderToStaticMarkup(<TrainPlay level={3} previous={{}} onGenerated={() => {}} onFinish={() => {}} onQuit={() => {}} onRestart={() => {}} sound={false} audio={createTrainAudio()} reducedMotion={false} />);
     expect(html).toContain('Mettre la partie en pause');
     const game = { ...newTrainGame(8), paused: true };
     const paused = renderToStaticMarkup(<TrainBoard game={game} onToggle={() => {}} />);
@@ -39,5 +40,22 @@ describe('interface Petit train', () => {
       expect((Math.max(a, b) + .05) / (Math.min(a, b) + .05)).toBeGreaterThanOrEqual(4.5);
       for (const other of TRAIN_COLORS) if (other.id !== color.id) expect(Math.hypot(...rgb(color.color).map((c, i) => (c - rgb(other.color)[i]) * 255))).toBeGreaterThan(70);
     }
+  });
+  it('signale une mauvaise gare avec une croix, un halo et un message donnant la couleur attendue', () => {
+    const base = newTrainGame(1), spawn = base.schedule[0];
+    const station = base.network.stations.find(s => s.color.id !== spawn.colorId)!;
+    const game = { ...base, elapsedMs: 1100, errors: 1, deliveries: [{ trainId: spawn.id, stationId: station.id, correct: false, atMs: 1000 }] };
+    const html = renderToStaticMarkup(<TrainBoard game={game} onToggle={() => {}} />);
+    expect(html).toContain('Mauvaise gare !'); expect(html).toContain(`la gare ${TRAIN_COLORS.find(c => c.id === spawn.colorId)!.name}`);
+    expect(html).toContain('station-error-badge'); expect(html).toContain('station-error-motion'); expect(html).toContain('train-error-frame');
+    expect(html).toContain('aria-live="polite"'); expect(html).not.toContain('disabled=""');
+    const expired = renderToStaticMarkup(<TrainBoard game={{ ...game, elapsedMs: 1000 + TRAIN_RULES.failureFeedbackMs }} onToggle={() => {}} />);
+    expect(expired).not.toContain('Mauvaise gare !'); expect(expired).not.toContain('station-error-badge');
+  });
+  it('ne montre pas de message d’erreur après une bonne arrivée', () => {
+    const base = newTrainGame(1);
+    const game = { ...base, elapsedMs: 1100, deliveries: [{ trainId: 0, stationId: 0, correct: true, atMs: 1000 }] };
+    const html = renderToStaticMarkup(<TrainBoard game={game} onToggle={() => {}} />);
+    expect(html).toContain('✓'); expect(html).not.toContain('Mauvaise gare !'); expect(html).not.toContain('station-error-motion');
   });
 });

@@ -9,7 +9,9 @@ import type { TrainGame } from './simulation';
 import { finishTrainGame, saveTrainProgress } from './storage';
 import type { TrainProgress, TrainResult } from './storage';
 import { TrainBoard, tutorialDistance } from './TrainBoard';
+import { createTrainAudio } from './audio';
 import './train.css';
+import './train-feedback.css';
 
 const format = (n: number) => n.toLocaleString('fr-FR');
 type Screen = 'levels' | 'tutorial' | 'game' | 'result' | 'settings';
@@ -24,9 +26,12 @@ export function TrainExperience({ progress, onProgress, onExit, sound, reducedMo
   const [tutorialReturn, setTutorialReturn] = useState<'game' | 'settings'>(initialTutorial ? 'settings' : 'game');
   const [gameKey, setGameKey] = useState(0);
   const previous = useRef<{ signature?: string; colors?: string[] }>({});
+  const [audio] = useState(createTrainAudio);
+  useEffect(() => () => audio.close(), [audio]);
   useEffect(() => { window.scrollTo(0, 0); }, [screen]);
   const save = useCallback((next: TrainProgress) => { if (!saveTrainProgress(next)) setStorageError(true); onProgress(next); }, [onProgress]);
   const start = (chosen = level) => {
+    if (sound) audio.unlock();
     setLevel(chosen); setGameKey(k => k + 1);
     if (!progress.tutorialDone) { setTutorialReturn('game'); setScreen('tutorial'); }
     else setScreen('game');
@@ -37,7 +42,7 @@ export function TrainExperience({ progress, onProgress, onExit, sound, reducedMo
     setCompleted({ result: saved.result, best: saved.progress.best[game.network.level], newRecord: saved.newRecord });
     setScreen('result');
   }, [progress, save]);
-  if (screen === 'game') return <TrainPlay key={gameKey} level={level} previous={previous.current} onGenerated={game => { previous.current = { signature: game.network.signature, colors: game.schedule.map(s => s.colorId) }; }} onFinish={finish} onQuit={() => setScreen('levels')} onRestart={() => setGameKey(k => k + 1)} sound={sound} reducedMotion={reducedMotion} />;
+  if (screen === 'game') return <TrainPlay key={gameKey} level={level} previous={previous.current} onGenerated={game => { previous.current = { signature: game.network.signature, colors: game.schedule.map(s => s.colorId) }; }} onFinish={finish} onQuit={() => setScreen('levels')} onRestart={() => { if (sound) audio.unlock(); setGameKey(k => k + 1); }} sound={sound} audio={audio} reducedMotion={reducedMotion} />;
   if (screen === 'tutorial') return <TrainTutorial reducedMotion={reducedMotion} onExit={() => setScreen(tutorialReturn === 'game' ? 'levels' : 'settings')} onDone={() => { save({ ...progress, tutorialDone: true }); setScreen(tutorialReturn); }} />;
   const nextLevel = completed ? completed.result.level + 1 : 1;
   return <main className={`train-hub ${reducedMotion ? 'reduce-motion' : ''}`}>

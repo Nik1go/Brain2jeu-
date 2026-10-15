@@ -1,9 +1,12 @@
 import { useId, useMemo } from 'react';
+import type { CSSProperties } from 'react';
+import { X } from 'lucide-react';
 import { TRAIN_COLORS, TRAIN_RULES } from './config';
 import { JUNCTION_RADIUS, pathLength, positionOnRoute } from './network';
 import type { Point, TrackPiece } from './network';
 import type { MovingTrain, TrainGame } from './simulation';
 import { junctionRail, railPath } from './rails';
+import { recentFailure, stationFeedback } from './feedback';
 
 function Rail({ pieces, active = false }: { pieces: TrackPiece[]; active?: boolean }) {
   const d = railPath(pieces);
@@ -51,6 +54,8 @@ export function TrainSprite({ train }: { train: MovingTrain }) {
 export function TrainBoard({ game, onToggle, highlight, interactive = true }: { game: TrainGame; onToggle: (id: number) => void; highlight?: number; interactive?: boolean }) {
   const { network } = game;
   const railId = useId();
+  const failure = recentFailure(game);
+  const expectedColor = failure && TRAIN_COLORS.find(c => c.id === game.schedule.find(s => s.id === failure.trainId)?.colorId);
   const scenery = useMemo(() => {
     let seed = network.scenerySeed + 1;
     const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -63,7 +68,7 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
     }
     return trees;
   }, [network]);
-  return <div className="train-board">
+  return <div className="train-board" data-paused={game.paused} style={{ '--train-failure-duration': `${TRAIN_RULES.failureFeedbackMs}ms` } as CSSProperties}>
     <svg viewBox={`0 0 ${network.width} ${network.height}`} className="train-map" role="img" aria-label={`Réseau forestier, ${network.stations.length} gares, entrée ${network.entryZone}`}>
       <defs>
         <radialGradient id="forest-light"><stop stopColor="#E8EED3" /><stop offset="1" stopColor="#CCDDBB" /></radialGradient>
@@ -93,23 +98,30 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
         </g>)}
       </g>
       {network.stations.map(station => {
-        const feedback = game.deliveries.filter(d => d.stationId === station.id && game.elapsedMs - d.atMs < TRAIN_RULES.feedbackMs).at(-1);
+        const feedback = stationFeedback(game, station.id), failed = feedback && !feedback.correct;
         return <g key={station.id} transform={`translate(${station.point.x} ${station.point.y})`} aria-label={`Gare ${station.color.name}, symbole ${station.color.symbol}`} className={`train-station ${feedback ? feedback.correct ? 'delivery-good' : 'delivery-bad' : ''}`}>
-          {feedback && <g key={feedback.trainId} className="station-feedback"><circle r="31" fill={feedback.correct ? '#EFFAE1' : '#FCE0D6'} stroke={feedback.correct ? '#487F57' : '#BF4E45'} strokeWidth="2" /><text y="-32" textAnchor="middle" fill={feedback.correct ? '#356546' : '#A23631'} fontSize="20" fontWeight="800">{feedback.correct ? '✓' : '×'}</text></g>}
-          <g transform={`rotate(${station.angle})`}>
-            <rect x="-24" y="-25" width="48" height="50" rx="9" fill="#B3BFA0" opacity=".5" transform="translate(2 3)" />
-            <rect x="-23" y="-24" width="46" height="48" rx="8" fill="#F2EAD1" stroke="#C9C3A8" />
-            <path d="M-17-18h34M-17 18h34" stroke="#D3C4A2" strokeWidth="2" />
-            <rect x="-19" y="-14" width="38" height="28" rx="4" fill={station.color.color} stroke="#334B3B" strokeWidth="1.5" />
-            <path d="M-19-1h38" stroke="#FFFAE6" strokeOpacity=".3" strokeWidth="2" />
-            <path d="M21-9v18" stroke={station.color.color} strokeWidth="3" strokeLinecap="round" />
+          {feedback && <g key={`feedback-${feedback.trainId}`} className={`station-feedback ${failed ? 'station-feedback-error' : ''}`} aria-hidden="true"><circle r={failed ? 33 : 31} fill={failed ? '#FFD9CE' : '#EFFAE1'} stroke={failed ? '#BA3529' : '#487F57'} strokeWidth={failed ? 3 : 2} />{failed ? <circle className="station-error-ring" r="31" fill="none" stroke="#BA3529" strokeWidth="2" /> : <text y="-32" textAnchor="middle" fill="#356546" fontSize="20" fontWeight="800">✓</text>}</g>}
+          <g key={failed ? `building-${feedback.trainId}` : 'station'} className={failed ? 'station-error-motion' : undefined}>
+            <g transform={`rotate(${station.angle})`}>
+              <rect x="-24" y="-25" width="48" height="50" rx="9" fill="#B3BFA0" opacity=".5" transform="translate(2 3)" />
+              <rect x="-23" y="-24" width="46" height="48" rx="8" fill="#F2EAD1" stroke="#C9C3A8" />
+              <path d="M-17-18h34M-17 18h34" stroke="#D3C4A2" strokeWidth="2" />
+              <rect x="-19" y="-14" width="38" height="28" rx="4" fill={station.color.color} stroke="#334B3B" strokeWidth="1.5" />
+              <path d="M-19-1h38" stroke="#FFFAE6" strokeOpacity=".3" strokeWidth="2" />
+              <path d="M21-9v18" stroke={station.color.color} strokeWidth="3" strokeLinecap="round" />
+            </g>
+            <circle r="10" fill={station.color.color} />
+            <text y="5" textAnchor="middle" fill={station.color.ink} fontSize="17" fontWeight="800">{station.color.symbol}</text>
           </g>
-          <circle r="10" fill={station.color.color} />
-          <text y="5" textAnchor="middle" fill={station.color.ink} fontSize="17" fontWeight="800">{station.color.symbol}</text>
+          {failed && <g transform="translate(21 -23)" aria-hidden="true"><g key={feedback.trainId} className="station-error-badge"><circle r="13" fill="#BA3529" stroke="#FFF9EC" strokeWidth="2.5" /><path d="m-4-4 8 8m0-8-8 8" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" /></g></g>}
         </g>;
       })}
       <g aria-hidden="true">{game.trains.map(train => <TrainSprite key={train.id} train={train} />)}</g>
     </svg>
+    {failure && <div key={`frame-${failure.trainId}`} className="train-error-frame" aria-hidden="true" />}
+    <div className="train-failure-status" role="status" aria-live="polite" aria-atomic="true">
+      {failure && <div key={failure.trainId} className="train-failure-toast"><span className="train-failure-icon" aria-hidden="true"><X size={23} strokeWidth={3} /></span><span><strong>Mauvaise gare !</strong><small>{expectedColor ? <>Ce train attend la gare {expectedColor.name} {expectedColor.symbol}.</> : 'Le train a rejoint une autre gare.'}</small></span></div>}
+    </div>
     {network.junctions.map(j => <button key={j.id} type="button" className={`junction-touch ${highlight === j.id ? 'tutorial-highlight' : ''}`} style={{ left: `${j.point.x / network.width * 100}%`, top: `${j.point.y / network.height * 100}%`, width: `${56 / network.width * 100}%`, height: `${56 / network.height * 100}%` }} aria-label={`Aiguillage ${j.id + 1}, ${game.switches[j.id] ? `virage à ${j.turnSide === 'left' ? 'gauche' : 'droite'}` : 'tout droit'}`} aria-pressed={game.switches[j.id]} disabled={!interactive || game.over || game.paused} onClick={() => onToggle(j.id)} />)}
   </div>;
 }
