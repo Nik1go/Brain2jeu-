@@ -1,12 +1,11 @@
 import { useId, useMemo } from 'react';
-import type { CSSProperties } from 'react';
-import { X } from 'lucide-react';
-import { TRAIN_COLORS, TRAIN_RULES } from './config';
+import { TRAIN_COLORS } from './config';
 import { JUNCTION_RADIUS, pathLength, positionOnRoute } from './network';
 import type { Point, TrackPiece } from './network';
 import type { MovingTrain, TrainGame } from './simulation';
+import { controllableJunction } from './simulation';
 import { junctionRail, railPath } from './rails';
-import { recentFailure, stationFeedback } from './feedback';
+import { stationFeedback } from './feedback';
 
 function Rail({ pieces, active = false }: { pieces: TrackPiece[]; active?: boolean }) {
   const d = railPath(pieces);
@@ -54,8 +53,7 @@ export function TrainSprite({ train }: { train: MovingTrain }) {
 export function TrainBoard({ game, onToggle, highlight, interactive = true }: { game: TrainGame; onToggle: (id: number) => void; highlight?: number; interactive?: boolean }) {
   const { network } = game;
   const railId = useId();
-  const failure = recentFailure(game);
-  const expectedColor = failure && TRAIN_COLORS.find(c => c.id === game.schedule.find(s => s.id === failure.trainId)?.colorId);
+  const occupiedJunctions = new Set(game.trains.map(train => controllableJunction(network, train)).filter(id => id !== undefined));
   const scenery = useMemo(() => {
     let seed = network.scenerySeed + 1;
     const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -68,7 +66,7 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
     }
     return trees;
   }, [network]);
-  return <div className="train-board" data-paused={game.paused} style={{ '--train-failure-duration': `${TRAIN_RULES.failureFeedbackMs}ms` } as CSSProperties}>
+  return <div className="train-board" data-paused={game.paused}>
     <svg viewBox={`0 0 ${network.width} ${network.height}`} className="train-map" role="img" aria-label={`Réseau forestier, ${network.stations.length} gares, entrée ${network.entryZone}`}>
       <defs>
         <radialGradient id="forest-light"><stop stopColor="#E8EED3" /><stop offset="1" stopColor="#CCDDBB" /></radialGradient>
@@ -85,7 +83,7 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
       <rect width="360" height="620" fill="url(#forest-grain)" />
       <g aria-hidden="true">{scenery.map((p, i) => <Tree key={i} {...p} />)}</g>
       <g aria-hidden="true">
-        {network.junctions.map(j => <circle key={j.id} className="junction-disc" cx={j.point.x} cy={j.point.y} r={JUNCTION_RADIUS} />)}
+        {network.junctions.map(j => <circle key={j.id} className={`junction-disc${occupiedJunctions.has(j.id) ? ' junction-occupied' : ''}`} data-junction={j.id} data-occupied={occupiedJunctions.has(j.id)} cx={j.point.x} cy={j.point.y} r={JUNCTION_RADIUS} />)}
         <g mask={`url(#${railId}-outside-junctions)`}>
           <Rail pieces={network.root.pieces} />
           {network.junctions.map(j => <g key={j.id}><Rail pieces={j.straight.pieces} /><Rail pieces={j.turn.pieces} /></g>)}
@@ -100,8 +98,8 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
       {network.stations.map(station => {
         const feedback = stationFeedback(game, station.id), failed = feedback && !feedback.correct;
         return <g key={station.id} transform={`translate(${station.point.x} ${station.point.y})`} aria-label={`Gare ${station.color.name}, symbole ${station.color.symbol}`} className={`train-station ${feedback ? feedback.correct ? 'delivery-good' : 'delivery-bad' : ''}`}>
-          {feedback && <g key={`feedback-${feedback.trainId}`} className={`station-feedback ${failed ? 'station-feedback-error' : ''}`} aria-hidden="true"><circle r={failed ? 33 : 31} fill={failed ? '#FFD9CE' : '#EFFAE1'} stroke={failed ? '#BA3529' : '#487F57'} strokeWidth={failed ? 3 : 2} />{failed ? <circle className="station-error-ring" r="31" fill="none" stroke="#BA3529" strokeWidth="2" /> : <text y="-32" textAnchor="middle" fill="#356546" fontSize="20" fontWeight="800">✓</text>}</g>}
-          <g key={failed ? `building-${feedback.trainId}` : 'station'} className={failed ? 'station-error-motion' : undefined}>
+          {feedback?.correct && <g key={`feedback-${feedback.trainId}`} className="station-feedback" aria-hidden="true"><circle r="31" fill="#EFFAE1" stroke="#487F57" strokeWidth="2" /><text y="-32" textAnchor="middle" fill="#356546" fontSize="20" fontWeight="800">✓</text></g>}
+          <g>
             <g transform={`rotate(${station.angle})`}>
               <rect x="-24" y="-25" width="48" height="50" rx="9" fill="#B3BFA0" opacity=".5" transform="translate(2 3)" />
               <rect x="-23" y="-24" width="46" height="48" rx="8" fill="#F2EAD1" stroke="#C9C3A8" />
@@ -113,16 +111,12 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
             <circle r="10" fill={station.color.color} />
             <text y="5" textAnchor="middle" fill={station.color.ink} fontSize="17" fontWeight="800">{station.color.symbol}</text>
           </g>
-          {failed && <g transform="translate(21 -23)" aria-hidden="true"><g key={feedback.trainId} className="station-error-badge"><circle r="13" fill="#BA3529" stroke="#FFF9EC" strokeWidth="2.5" /><path d="m-4-4 8 8m0-8-8 8" fill="none" stroke="#FFFFFF" strokeWidth="3" strokeLinecap="round" /></g></g>}
+          {failed && <g transform="translate(21 -23)" aria-hidden="true"><g key={feedback.trainId} className="station-error-badge" fill="none" strokeLinecap="round"><path d="m-6-6 12 12m0-12-12 12" stroke="#FFF9EC" strokeWidth="6.5" /><path d="m-6-6 12 12m0-12-12 12" stroke="#BA3529" strokeWidth="3.5" /></g></g>}
         </g>;
       })}
       <g aria-hidden="true">{game.trains.map(train => <TrainSprite key={train.id} train={train} />)}</g>
     </svg>
-    {failure && <div key={`frame-${failure.trainId}`} className="train-error-frame" aria-hidden="true" />}
-    <div className="train-failure-status" role="status" aria-live="polite" aria-atomic="true">
-      {failure && <div key={failure.trainId} className="train-failure-toast"><span className="train-failure-icon" aria-hidden="true"><X size={23} strokeWidth={3} /></span><span><strong>Mauvaise gare !</strong><small>{expectedColor ? <>Ce train attend la gare {expectedColor.name} {expectedColor.symbol}.</> : 'Le train a rejoint une autre gare.'}</small></span></div>}
-    </div>
-    {network.junctions.map(j => <button key={j.id} type="button" className={`junction-touch ${highlight === j.id ? 'tutorial-highlight' : ''}`} style={{ left: `${j.point.x / network.width * 100}%`, top: `${j.point.y / network.height * 100}%`, width: `${56 / network.width * 100}%`, height: `${56 / network.height * 100}%` }} aria-label={`Aiguillage ${j.id + 1}, ${game.switches[j.id] ? `virage à ${j.turnSide === 'left' ? 'gauche' : 'droite'}` : 'tout droit'}`} aria-pressed={game.switches[j.id]} disabled={!interactive || game.over || game.paused} onClick={() => onToggle(j.id)} />)}
+    {network.junctions.map(j => <button key={j.id} type="button" className={`junction-touch ${highlight === j.id ? 'tutorial-highlight' : ''}`} data-occupied={occupiedJunctions.has(j.id)} style={{ left: `${j.point.x / network.width * 100}%`, top: `${j.point.y / network.height * 100}%`, width: `${56 / network.width * 100}%`, height: `${56 / network.height * 100}%` }} aria-label={`Aiguillage ${j.id + 1}, ${game.switches[j.id] ? `virage à ${j.turnSide === 'left' ? 'gauche' : 'droite'}` : 'tout droit'}${occupiedJunctions.has(j.id) ? ', train dans le cercle' : ''}`} aria-pressed={game.switches[j.id]} disabled={!interactive || game.over || game.paused} onClick={() => onToggle(j.id)} />)}
   </div>;
 }
 

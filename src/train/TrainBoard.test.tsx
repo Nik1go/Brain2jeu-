@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { TrainBoard } from './TrainBoard';
 import { TrainExperience } from './TrainExperience';
-import { newTrainGame } from './simulation';
+import { advanceTrains, controllableJunction, newTrainGame, spawnTrain, toggleJunction } from './simulation';
 import { emptyTrainProgress } from './storage';
 import { TrainPlay } from './TrainPlay';
 import { TRAIN_COLORS, TRAIN_RULES } from './config';
 import { createTrainAudio } from './audio';
+import { pathLength } from './network';
 
 describe('interface Petit train', () => {
   it('expose de vrais boutons binaires et dessine les rails actifs sans flèches', () => {
@@ -41,14 +42,14 @@ describe('interface Petit train', () => {
       for (const other of TRAIN_COLORS) if (other.id !== color.id) expect(Math.hypot(...rgb(color.color).map((c, i) => (c - rgb(other.color)[i]) * 255))).toBeGreaterThan(70);
     }
   });
-  it('signale une mauvaise gare avec une croix, un halo et un message donnant la couleur attendue', () => {
+  it('signale une mauvaise gare uniquement par une croix, sans message, halo ou secousse', () => {
     const base = newTrainGame(1), spawn = base.schedule[0];
     const station = base.network.stations.find(s => s.color.id !== spawn.colorId)!;
     const game = { ...base, elapsedMs: 1100, errors: 1, deliveries: [{ trainId: spawn.id, stationId: station.id, correct: false, atMs: 1000 }] };
     const html = renderToStaticMarkup(<TrainBoard game={game} onToggle={() => {}} />);
-    expect(html).toContain('Mauvaise gare !'); expect(html).toContain(`la gare ${TRAIN_COLORS.find(c => c.id === spawn.colorId)!.name}`);
-    expect(html).toContain('station-error-badge'); expect(html).toContain('station-error-motion'); expect(html).toContain('train-error-frame');
-    expect(html).toContain('aria-live="polite"'); expect(html).not.toContain('disabled=""');
+    expect(html).toContain('station-error-badge');
+    for (const removed of ['Mauvaise gare', 'station-error-motion', 'station-error-ring', 'station-feedback-error', 'train-error-frame', 'train-failure-toast']) expect(html).not.toContain(removed);
+    expect(html).not.toContain('disabled=""');
     const expired = renderToStaticMarkup(<TrainBoard game={{ ...game, elapsedMs: 1000 + TRAIN_RULES.failureFeedbackMs }} onToggle={() => {}} />);
     expect(expired).not.toContain('Mauvaise gare !'); expect(expired).not.toContain('station-error-badge');
   });
@@ -57,5 +58,22 @@ describe('interface Petit train', () => {
     const game = { ...base, elapsedMs: 1100, deliveries: [{ trainId: 0, stationId: 0, correct: true, atMs: 1000 }] };
     const html = renderToStaticMarkup(<TrainBoard game={game} onToggle={() => {}} />);
     expect(html).toContain('✓'); expect(html).not.toContain('Mauvaise gare !'); expect(html).not.toContain('station-error-motion');
+  });
+  it('éclaire le cercle exactement pendant la fenêtre où la locomotive peut changer de voie', () => {
+    let seed = 6;
+    const base = newTrainGame(3, { random: () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; } });
+    const id = base.network.root.next.id, train = spawnTrain(base.network, { id: 0, colorId: 'blue', atMs: 0 });
+    for (const offset of [-8, -6, 15, 42, 44]) {
+      const game = advanceTrains({ ...base, schedule: [], trains: [{ ...train, distance: pathLength(base.network.root.pieces) + offset }] }, 1);
+      const html = renderToStaticMarkup(<TrainBoard game={game} onToggle={() => {}} />);
+      const active = controllableJunction(game.network, game.trains[0]) === id;
+      expect(html.includes('junction-disc junction-occupied')).toBe(active);
+      if (active) expect(html).toContain('train dans le cercle');
+      else expect(html).not.toContain('train dans le cercle');
+      expect(html).not.toContain('disabled=""');
+      const switched = toggleJunction(game, id);
+      if (offset === 15 || offset === 42) expect(switched.trains[0].pieces).not.toEqual(game.trains[0].pieces);
+      if (offset === 44) expect(switched.trains[0].pieces).toEqual(game.trains[0].pieces);
+    }
   });
 });

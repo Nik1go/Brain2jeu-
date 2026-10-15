@@ -18,6 +18,17 @@ export function newTrainGame(level: number, options: { random?: Random; entryZon
 export function spawnTrain(network: Network, spawn: Spawn): MovingTrain {
   return { id: spawn.id, colorId: spawn.colorId, pieces: [...network.root.pieces], distance: 0, next: network.root.next };
 }
+/** The locomotive controls this selector from entry into its circle until its head exits.
+ * On approach the route is not chosen yet; on departure activeJunction permits correction. */
+export function controllableJunction(network: Network, train: MovingTrain): number | undefined {
+  const head = positionOnRoute(train.pieces, train.distance);
+  for (const id of [train.activeJunction, train.next.kind === 'switch' ? train.next.id : undefined]) {
+    if (id === undefined) continue;
+    const junction = network.junctions[id];
+    if (junction && Math.hypot(head.x - junction.point.x, head.y - junction.point.y) <= JUNCTION_RADIUS + .01) return id;
+  }
+  return undefined;
+}
 function moveUntil(game: TrainGame, targetMs: number): TrainGame {
   const distance = (targetMs - game.elapsedMs) / 1000 * TRAIN_RULES.speed;
   let score: TrainScore = game;
@@ -35,10 +46,7 @@ function moveUntil(game: TrainGame, targetMs: number): TrainGame {
       const station = game.network.stations[train.next.id];
       score = recordDelivery(score, { trainId: train.id, stationId: station.id, correct: station.color.id === train.colorId, atMs: targetMs - (train.distance - length) / TRAIN_RULES.speed * 1000 }, game.network.stations.length);
     } else {
-      if (train.activeJunction !== undefined) {
-        const head = positionOnRoute(train.pieces, train.distance), center = game.network.junctions[train.activeJunction].point;
-        if (Math.hypot(head.x - center.x, head.y - center.y) > JUNCTION_RADIUS + .01) train.activeJunction = undefined;
-      }
+      if (train.activeJunction !== undefined && controllableJunction(game.network, train) !== train.activeJunction) train.activeJunction = undefined;
       trains.push(train);
     }
   }
@@ -63,9 +71,8 @@ export function toggleJunction(game: TrainGame, id: number, elapsedMs = game.ela
   const switches = next.switches.map((active, i) => i === id ? !active : active);
   const route = switches[id] ? next.network.junctions[id].turn : next.network.junctions[id].straight;
   const trains = next.trains.map(train => {
-    if (train.activeJunction !== id) return train;
-    const head = positionOnRoute(train.pieces, train.distance), center = next.network.junctions[id].point;
-    if (Math.hypot(head.x - center.x, head.y - center.y) > JUNCTION_RADIUS + .01) return train;
+    if (train.activeJunction !== id || controllableJunction(next.network, train) !== id) return train;
+    const head = positionOnRoute(train.pieces, train.distance);
     const travelled = splitPath(train.pieces, train.distance).before;
     const remainder = splitPath(route.pieces.slice(1), JUNCTION_RADIUS - RAIL_RADIUS + 1).after;
     const exit = piecePosition(remainder[0], 0), angle = head.angle * Math.PI / 180, exitAngle = exit.angle * Math.PI / 180;

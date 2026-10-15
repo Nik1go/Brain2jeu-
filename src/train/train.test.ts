@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { levelConfig, TRAIN_COLORS, TRAIN_LEVELS, TRAIN_RULES, TRAIN_WAVE_RULES } from './config';
 import { destination, ENTRY_ZONES, pathLength, positionOnRoute } from './network';
 import { emptyTrainScore, levelPassed, pointsPerTrain, recordDelivery } from './scoring';
-import { advanceTrains, newTrainGame, setTrainPaused, spawnTrain, toggleJunction } from './simulation';
+import { advanceTrains, controllableJunction, newTrainGame, setTrainPaused, spawnTrain, toggleJunction } from './simulation';
 import { emptyTrainProgress, finishTrainGame, loadTrainProgress, saveTrainProgress, TRAIN_STORAGE_KEY } from './storage';
 import { colorSequence, createSchedule, spawnIntervalMs } from './waves';
 import { newTrainClock, pauseTrainClock, tickTrainClock } from './time';
@@ -72,6 +72,32 @@ describe('départs pendant deux minutes', () => {
 });
 
 describe('aiguillage modifiable dans tout le cercle', () => {
+  it('signale l’entrée dans le cercle avant le choix de la branche', () => {
+    const before = parked(-7.3), inside = parked(-6.9), id = inside.network.root.next.id;
+    expect(controllableJunction(before.network, before.trains[0])).toBeUndefined();
+    expect(inside.trains[0].activeJunction).toBeUndefined();
+    expect(controllableJunction(inside.network, inside.trains[0])).toBe(id);
+    const turned = advanceTrains(toggleJunction(inside, id), 200);
+    expect(turned.trains[0].activeJunction).toBe(id);
+    expect(turned.trains[0].next).toEqual(inside.network.junctions[id].turn.next);
+  });
+  it('libère l’aiguillage quand la locomotive sort, même si le wagon est encore dans le cercle', () => {
+    const inside = parked(42.8), outside = parked(43.2), id = inside.network.root.next.id;
+    expect(controllableJunction(inside.network, inside.trains[0])).toBe(id);
+    expect(controllableJunction(outside.network, outside.trains[0])).toBeUndefined();
+    const wagon = positionOnRoute(outside.trains[0].pieces, outside.trains[0].distance - 24), center = outside.network.junctions[id].point;
+    expect(Math.hypot(wagon.x - center.x, wagon.y - center.y)).toBeLessThan(25);
+    expect(toggleJunction(outside, id).trains[0].pieces).toEqual(outside.trains[0].pieces);
+  });
+  it('utilise la même limite à la sortie d’un virage et après une correction', () => {
+    const base = parked(0, true), id = base.network.root.next.id, bend = base.network.junctions[id].turn.pieces[0].length;
+    const inside = parked(bend + 6.8, true), outside = parked(bend + 7.2, true);
+    expect(controllableJunction(inside.network, inside.trains[0])).toBe(id);
+    expect(controllableJunction(outside.network, outside.trains[0])).toBeUndefined();
+    const corrected = toggleJunction(inside, id);
+    expect(controllableJunction(corrected.network, corrected.trains[0])).toBe(id);
+    expect(corrected.trains[0].next).toEqual(corrected.network.junctions[id].straight.next);
+  });
   it('change la direction après le centre sans déplacer la locomotive', () => {
     let game = parked(30); const id = game.network.root.next.id;
     const before = positionOnRoute(game.trains[0].pieces, game.trains[0].distance);
