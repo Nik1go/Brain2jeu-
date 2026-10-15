@@ -1,6 +1,6 @@
 # Déclic
 
-Une application de mini-jeux cérébraux en français, responsive dès **360 px**, construite avec React, TypeScript et Vite. Le premier jeu, **Mémoire — Miroirs cachés**, est entièrement jouable. Petit train, Calcul mental et Fil à fil sont présentés comme à venir.
+Une application de mini-jeux cérébraux en français, responsive dès **360 px**, construite avec React, TypeScript et Vite. Deux jeux sont entièrement jouables : **Mémoire — Miroirs cachés** et **Organisation — Petit train**. Calcul mental et Fil à fil sont présentés comme à venir.
 
 ## Démarrage
 
@@ -12,12 +12,41 @@ npm run dev
 Ouvrir l’adresse affichée par Vite. Pour tester sur un téléphone du même réseau : `npm run dev -- --host 0.0.0.0`, puis ouvrir l’adresse IP locale du PC avec le port indiqué. Le pare-feu doit autoriser le serveur local.
 
 ```sh
-npm test         # 34 tests du moteur, du rendu et des records
+npm test         # tests des deux moteurs, du rendu et des records
 npm run build   # vérification TypeScript + dist de production
 npm run preview # aperçu de la version compilée
 ```
 
-## Fonctionnement
+## Petit train
+
+- **8 niveaux uniquement**, de 2 à 9 gares. Une partie dure exactement 120 secondes ; 0 à 3 fautes débloquent la suite. Une quatrième faute laisse la partie se terminer pour s’entraîner. Les niveaux acquis restent accessibles.
+- **Réseau aléatoire sans boucle** : arbre ferroviaire à voies latérales séparées, transformé pour les quatre zones d’entrée verticales. Les positions, les couleurs et le décor sont renouvelés ; les variations de longueur sont bornées et le nombre d’aiguillages reste fixe par niveau.
+- **Aiguillages binaires** : droit ou un virage de 90°, indiqué par le rail actif. Le choix est capturé 18 unités avant le centre ; un train engagé garde la trajectoire choisie. Boutons tactiles de 44 px minimum, utilisables au clavier.
+- **Quatre phases continues** : intervalle de base `max(2.8, 5 − 0.3 × (niveau − 1))` secondes, multiplié par 1.15 / 1 / 0.90 / 0.80. Plancher absolu 1.8 s, vitesse constante. Les apparitions s’arrêtent selon le plus long trajet, avec 500 ms de marge.
+- **Couleurs équilibrées** par sacs mélangés. Chaque train partage exactement la couleur et le symbole de sa gare. Les séquences identiques à la précédente sont évitées.
+- **Score** : `100 + 25 × (gares − 2)` par bonne livraison, zéro point et une faute pour une mauvaise. Un identifiant de train empêche le double comptage.
+- **Tutoriel interactif** au premier départ et depuis les paramètres de Petit train ou le profil Déclic. Aucun résultat du tutoriel n’est enregistré.
+- **Persistance locale** séparée (`declic.petit-train.v1`) : niveaux, tutoriel, record par niveau et 100 dernières parties. Les parties de Petit train rejoignent les statistiques de Déclic. En cas de stockage bloqué, la progression reste en mémoire pour la visite.
+- Le temps continue en arrière-plan. Au retour, la simulation rattrape chaque apparition et livraison, sans faire disparaître les trains sans résultat.
+
+### Régler ou étendre Petit train
+
+Tous les paramètres sont dans `src/train/config.ts` : `TRAIN_RULES` (temps, rythme, vitesse, marge, feedback), `TRAIN_LEVELS` (nombre de gares) et `TRAIN_COLORS` (couleur et symbole stables). La première série utilise neuf couleurs. Pour aller au-delà de neuf gares, ajouter des couleurs distinctes et adapter l’espacement / la taille du réseau dans `network.ts` pour préserver les zones tactiles.
+
+```text
+src/train/config.ts          Niveaux, couleurs et réglages
+src/train/network.ts         Génération, géométrie commune au rendu et au mouvement
+src/train/waves.ts           Phases, apparitions et sacs de couleurs
+src/train/simulation.ts      Circulation, capture des décisions et horloge absolue
+src/train/scoring.ts         Points, fautes, résultat unique
+src/train/storage.ts         Progression et records indépendants
+src/train/TrainBoard.tsx     Plateau SVG forestier et boutons tactiles
+src/train/TrainExperience.tsx Niveaux, tutoriel, partie, résultat et paramètres
+```
+
+Les tests épuisent toutes les combinaisons d’aiguillages pour les huit niveaux et les quatre entrées, vérifient les rythmes, la marge avant 120 s, les sacs, les décisions en cours de virage, le comptage unique, la progression avec 0–3 / 4+ fautes et la persistance.
+
+## Miroirs cachés — fonctionnement
 
 - **Survie** : départ au niveau 1 ; 3 bonnes réponses non nécessairement consécutives pour monter ; 2 erreurs consécutives pour descendre ; fin à 3 erreurs au total. Le score reste acquis.
 - **Défi** : 90 secondes, niveau fixe choisi parmi les niveaux débloqués en Survie. Le chronomètre affiche les secondes restantes. Le temps comprend observation et réponse, et est suspendu pendant les corrections.
@@ -71,17 +100,15 @@ npx cap open ios
 
 **Cette livraison prépare la migration ; elle ne contient pas de binaire signé et n’a pas été testée dans un simulateur natif.** Avant les stores : choisir l’identifiant définitif de l’app, générer les icônes/splash natifs, vérifier sur de vrais appareils, préparer les métadonnées et déclarations de confidentialité, puis signer avec les comptes développeur respectifs. Pour une persistance native plus robuste, l’adaptateur `storage.ts` peut être remplacé par Capacitor Preferences sans toucher au moteur.
 
-## Dépôt GitHub ultérieur
+## Dépôt GitHub
 
-Le projet est prêt à être versionné. Aucun secret n’est nécessaire à son exécution. Ne pas ajouter `node_modules` ou `dist` au dépôt. Après création d’un dépôt GitHub vide, dans ce dossier :
+Le dépôt source est [Nik1go/Brain2jeu-](https://github.com/Nik1go/Brain2jeu-), sur la branche `main`. Le distant `origin` est configuré sur cette URL.
 
 ```sh
-git init
-git add .
-git commit -m "Create Déclic with responsive menu and mirror memory game"
-git branch -M main
-git remote add origin <URL_DU_DEPOT>
-git push -u origin main
+git clone https://github.com/Nik1go/Brain2jeu-.git
+cd Brain2jeu-
+npm install
+npm run dev
 ```
 
-Si le workflow Sites a déjà initialisé Git, conserver son distant et utiliser `git remote add github <URL_DU_DEPOT>` puis `git push github HEAD:main`.
+Pour les modifications suivantes : `git add`, `git commit`, puis `git push origin main`. Les dépendances, le build et les archives de déploiement sont exclus du dépôt.
