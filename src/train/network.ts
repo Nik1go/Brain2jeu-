@@ -51,7 +51,7 @@ export function piecePath(piece: TrackPiece): string {
 
 /** A planar comb tree: every fork has a straight continuation and ONE 90° siding.
  * The vertical lanes never merge. Reflection preserves topology, lengths and difficulty.
- * Jitter is bounded, so even nine stations retain separated touch targets and sidings.
+ * Jitter is bounded, so even eleven stations retain separated touch targets and sidings.
  */
 export function generateNetwork(level: number, options: { random?: Random; entryZone?: EntryZone; previousSignature?: string } = {}): Network {
   const random = options.random ?? Math.random;
@@ -61,11 +61,12 @@ export function generateNetwork(level: number, options: { random?: Random; entry
   const transform = (p: Point): Point => ({ x: flipX ? WIDTH - p.x : p.x, y: flipY ? HEIGHT - p.y : p.y });
   const transformPiece = (p: TrackPiece): TrackPiece => ({ ...p, start: transform(p.start), end: transform(p.end), control: p.control ? transform(p.control) : undefined });
   const trunkX = 64 + random() * 14;
-  const first = forks === 1 ? 278 : forks === 2 ? 187 : 90;
-  const last = forks === 1 ? first : forks === 2 ? 406 : 496;
+  const dense = count > 9;
+  const first = dense ? 64 : 90;
+  const last = dense ? 554 : 496;
   const nodes = Array.from({ length: forks }, (_, i) => ({ x: trunkX, y: first + (last - first) * i / Math.max(1, forks - 1) + (random() - .5) * 3 }));
   let colors = shuffle(TRAIN_COLORS.slice(0, count), random);
-  const stationPoints = [...nodes.map(p => ({ x: 238 + random() * 62, y: p.y })), { x: trunkX, y: 567 + random() * 5 }];
+  const stationPoints = [...nodes.map(p => ({ x: 238 + random() * 62, y: p.y })), { x: trunkX, y: (dense ? 590 : 567) + random() * 4 }];
   // Also change the position/color association, even if geometry or entry changed.
   let previousColors: string[] | undefined;
   try { previousColors = options.previousSignature ? JSON.parse(options.previousSignature)[3] : undefined; } catch { /* An obsolete signature is harmless. */ }

@@ -9,16 +9,18 @@ export const TRAIN_COLORS = [
   { id: 'orange', name: 'orange', color: '#C76B20', symbol: '✚' },
   { id: 'indigo', name: 'indigo', color: '#53549E', symbol: '■' },
   { id: 'olive', name: 'olive', color: '#687B27', symbol: '☾' },
+  { id: 'sky', name: 'turquoise', color: '#268EAC', symbol: '⬟' },
+  { id: 'brown', name: 'brune', color: '#875C38', symbol: '✦' },
 ] as const;
-export const TRAIN_LEVELS = Array.from({ length: 8 }, (_, i) => ({ level: i + 1, stations: i + 2 }));
+export const TRAIN_LEVELS = Array.from({ length: 8 }, (_, i) => ({ level: i + 1, stations: i + 4 }));
 export const TRAIN_RULES = {
   durationMs: 120_000,
   maxErrors: 3,
   speed: 62, // SVG units / second, identical in all phases and levels.
   firstSpawnMs: 1_200,
-  baseIntervalSeconds: 5,
-  intervalDecreasePerLevel: .3,
-  minimumBaseSeconds: 2.8,
+  baseIntervalSeconds: 3.6,
+  intervalDecreasePerLevel: .15,
+  minimumBaseSeconds: 2.4,
   phaseMultipliers: [1.15, 1, .9, .8],
   absoluteMinimumSeconds: 1.8,
   arrivalMarginMs: 500,

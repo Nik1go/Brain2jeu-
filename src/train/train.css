@@ -7,3 +7,5 @@
 @media(prefers-reduced-motion:reduce){.station-feedback,.junction-touch.tutorial-highlight{animation:none}.station-feedback{opacity:1}}
 
 .junction-touch{min-width:44px;min-height:44px}
+
+.station-palette{flex-wrap:wrap;max-width:145px;row-gap:3px}

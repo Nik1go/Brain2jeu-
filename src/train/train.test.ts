@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { TRAIN_COLORS, TRAIN_LEVELS, TRAIN_RULES } from './config';
+import { levelConfig, TRAIN_COLORS, TRAIN_LEVELS, TRAIN_RULES } from './config';
 import { destination, ENTRY_ZONES, generateNetwork, pathLength, piecePosition, positionOnRoute } from './network';
 import { emptyTrainScore, levelPassed, pointsPerTrain, recordDelivery } from './scoring';
 import { advanceTrains, newTrainGame, spawnTrain, toggleJunction } from './simulation';
@@ -40,11 +40,11 @@ describe('réseaux ferroviaires', () => {
       }
     }
   });
-  it('ne croise pas les voies et garde des zones tactiles séparées aux neuf gares', () => {
+  it('ne croise pas les voies et garde des zones tactiles séparées aux onze gares', () => {
     for (const entryZone of ENTRY_ZONES) {
       const n = generateNetwork(8, { entryZone, random: seeded(11) });
       const rows = n.junctions.map(j => j.point.y).sort((a, b) => a - b);
-      rows.slice(1).forEach((y, i) => expect(y - rows[i]).toBeGreaterThan(54));
+      rows.slice(1).forEach((y, i) => expect(y - rows[i]).toBeGreaterThan(50));
       for (const j of n.junctions) {
         const branch = j.turn.pieces[1];
         expect(branch.start.y).toBe(branch.end.y);
@@ -57,7 +57,7 @@ describe('réseaux ferroviaires', () => {
     for (const { level } of TRAIN_LEVELS) {
       const lengths = Array.from({ length: 80 }, (_, seed) => generateNetwork(level, { random: seeded(seed + 1) }).longestDistance);
       expect(Math.max(...lengths) / Math.min(...lengths)).toBeLessThan(1.13);
-      expect(Math.max(...lengths) / TRAIN_RULES.speed).toBeLessThan(13);
+      expect(Math.max(...lengths) / TRAIN_RULES.speed).toBeLessThan(13.5);
     }
   });
   it('renouvelle même un plateau généré par un hasard constant', () => {
@@ -77,12 +77,12 @@ describe('réseaux ferroviaires', () => {
 
 describe('vagues et couleurs', () => {
   it('respecte les quatre rythmes configurés et la borne absolue', () => {
-    expect([0, 30_000, 60_000, 90_000].map(t => spawnIntervalMs(1, t))).toEqual([5750, 5000, 4500, 4000]);
-    expect(spawnIntervalMs(8, 90_000)).toBeCloseTo(2320);
+    [0, 30_000, 60_000, 90_000].map(t => spawnIntervalMs(1, t)).forEach((interval, i) => expect(interval).toBeCloseTo([4140, 3600, 3240, 2880][i]));
+    expect(spawnIntervalMs(8, 90_000)).toBeCloseTo(2040);
     for (const { level } of TRAIN_LEVELS) for (const t of [0, 30_000, 60_000, 90_000]) expect(spawnIntervalMs(level, t)).toBeGreaterThanOrEqual(1800);
   });
   it('répartit chaque sac équitablement et ne répète pas une couleur plus de deux fois', () => {
-    for (let n = 2; n <= 9; n++) {
+    for (let n = 2; n <= TRAIN_COLORS.length; n++) {
       const colors = TRAIN_COLORS.slice(0, n).map(c => c.id);
       const sequence = colorSequence(n * 40, colors, seeded(n));
       for (let i = 0; i < sequence.length; i += n) expect([...sequence.slice(i, i + n)].sort()).toEqual([...colors].sort());
@@ -112,12 +112,12 @@ describe('circulation et score', () => {
     const station = game.network.stations[0];
     const train = spawnTrain(game.network, { id: 99, colorId: station.color.id, atMs: 0 });
     train.distance = pathLength(game.network.root.pieces) - 1;
-    game = { ...game, switches: [true], schedule: [], trains: [train] };
+    game = { ...game, switches: game.switches.map((_, i) => i === 0), schedule: [], trains: [train] };
     game = advanceTrains(game, 20);
     expect(game.trains[0].next).toEqual({ kind: 'station', id: station.id });
     const path = game.trains[0].pieces;
     game = toggleJunction(game, 0, 21);
-    expect(game.switches).toEqual([false]);
+    expect(game.switches.every(active => !active)).toBe(true);
     expect(game.trains[0].pieces).toEqual(path);
     game = advanceTrains(game, 12_000);
     expect(game.correct).toBe(1); expect(game.errors).toBe(0);
@@ -146,7 +146,7 @@ describe('circulation et score', () => {
   });
   it('termine aussi les trajets les plus longs avec des changements continus', () => {
     let game = newTrainGame(8, { random: seeded(2) });
-    for (let t = 111; t < 120_000; t += 111) game = toggleJunction(game, Math.floor(t / 111) % 8, t);
+    for (let t = 111; t < 120_000; t += 111) game = toggleJunction(game, Math.floor(t / 111) % game.network.junctions.length, t);
     game = advanceTrains(game, 120_000);
     expect(game.trains).toHaveLength(0); expect(game.deliveries).toHaveLength(game.schedule.length);
   });
@@ -175,7 +175,7 @@ describe('progression et persistance séparées de Miroirs cachés', () => {
   afterEach(() => { if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor); else Reflect.deleteProperty(globalThis, 'localStorage'); });
   function complete(level = 1, errors = 0) {
     const game = advanceTrains(newTrainGame(level), 120_000);
-    return { ...game, errors, correct: game.deliveries.length - errors, score: (game.deliveries.length - errors) * pointsPerTrain(level + 1) };
+    return { ...game, errors, correct: game.deliveries.length - errors, score: (game.deliveries.length - errors) * pointsPerTrain(levelConfig(level).stations) };
   }
   it.each([0, 1, 2, 3, 4, 5])('débloque si et seulement si les fautes %s sont au plus trois', errors => {
     expect(levelPassed(errors)).toBe(errors <= 3);

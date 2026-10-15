@@ -98,7 +98,7 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
       })}
       <g aria-hidden="true">{game.trains.map(train => <TrainSprite key={train.id} train={train} />)}</g>
     </svg>
-    {network.junctions.map(j => <button key={j.id} type="button" className={`junction-touch ${highlight === j.id ? 'tutorial-highlight' : ''}`} style={{ left: `${j.point.x / network.width * 100}%`, top: `${j.point.y / network.height * 100}%` }} aria-label={`Aiguillage ${j.id + 1}, ${game.switches[j.id] ? `virage à ${j.turnSide === 'left' ? 'gauche' : 'droite'}` : 'tout droit'}`} aria-pressed={game.switches[j.id]} disabled={!interactive || game.over} onClick={() => onToggle(j.id)} />)}
+    {network.junctions.map(j => <button key={j.id} type="button" className={`junction-touch ${highlight === j.id ? 'tutorial-highlight' : ''}`} style={{ left: `${j.point.x / network.width * 100}%`, top: `${j.point.y / network.height * 100}%`, width: `${(network.stations.length > 9 ? 50 : 56) / network.width * 100}%`, height: `${(network.stations.length > 9 ? 50 : 56) / network.height * 100}%` }} aria-label={`Aiguillage ${j.id + 1}, ${game.switches[j.id] ? `virage à ${j.turnSide === 'left' ? 'gauche' : 'droite'}` : 'tout droit'}`} aria-pressed={game.switches[j.id]} disabled={!interactive || game.over} onClick={() => onToggle(j.id)} />)}
   </div>;
 }
 
