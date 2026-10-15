@@ -1,4 +1,4 @@
-# Déclic
+# Brain2jeu
 
 Une application de mini-jeux cérébraux en français, responsive dès **360 px**, construite avec React, TypeScript et Vite. Deux jeux sont entièrement jouables : **Mémoire — Miroirs cachés** et **Organisation — Petit train**. Calcul mental et Fil à fil sont présentés comme à venir.
 
@@ -26,8 +26,8 @@ npm run preview # aperçu de la version compilée
 - **Vagues irrégulières** : rushs de 5 à 10 trains selon le niveau, petits groupes au rythme variable et trains isolés entourés d’accalmies de 4,5 à 6,5 s. L’ordre, la taille des groupes et les intervalles sont tirés au sort à chaque partie. Les rushs gardent au moins 1,9 s entre deux départs et sont suivis d’un répit ; la vitesse des trains reste constante. La densité de référence augmente progressivement en quatre phases et avec le niveau. Les apparitions continuent jusqu’à 120 s. Le chronomètre reste ensuite à zéro, les aiguillages restent actifs et le résultat attend toutes les livraisons.
 - **Couleurs équilibrées** par sacs mélangés. Chaque train partage exactement la couleur et le symbole de sa gare. Les séquences identiques à la précédente sont évitées.
 - **Score** : `100 + 25 × (gares − 2)` par bonne livraison, zéro point et une faute pour une mauvaise. Un identifiant de train empêche le double comptage.
-- **Tutoriel interactif** au premier départ et depuis les paramètres de Petit train ou le profil Déclic. Aucun résultat du tutoriel n’est enregistré.
-- **Persistance locale** séparée (`declic.petit-train.v1`) : niveaux, tutoriel, record par niveau et 100 dernières parties. Les parties de Petit train rejoignent les statistiques de Déclic. En cas de stockage bloqué, la progression reste en mémoire pour la visite.
+- **Tutoriel interactif** au premier départ et depuis les paramètres de Petit train ou le profil Brain2jeu. Aucun résultat du tutoriel n’est enregistré.
+- **Persistance locale** séparée (`declic.petit-train.v1`) : niveaux, tutoriel, record par niveau et 100 dernières parties. Les parties de Petit train rejoignent les statistiques de Brain2jeu. En cas de stockage bloqué, la progression reste en mémoire pour la visite.
 - **Pause** : le bouton du plateau et la touche Échap suspendent ensemble le chronomètre, les trains et les départs. Reprendre conserve exactement le temps actif. « Recommencer la partie » lance le même niveau avec une autre topologie, de nouveaux départs, un chrono de 2 minutes et les compteurs à zéro. Recommencer ou quitter abandonne la tentative sans enregistrer de résultat ni modifier les records ou les niveaux débloqués.
 - Sans pause manuelle, le temps continue en arrière-plan. Au retour, la simulation rattrape chaque apparition et livraison, sans faire disparaître les trains sans résultat.
 
@@ -80,6 +80,8 @@ Modifier `LEVELS`, `OBSERVATION_MS`, `CORRECTION_MS` et `CHALLENGE_MS` dans le m
 Les icônes viennent de Lucide. Les illustrations sont du SVG local ; les polices DM Sans et Nunito Sans sont livrées avec le bundle via Fontsource. Aucun CDN n’est nécessaire. Les licences des polices sont présentes dans leurs packages npm.
 
 ## Web et hors connexion
+
+Pour le VPS Nginx et `brain2jeu.leofinance.fr`, suivre [le guide de déploiement](deploy/README.md). `npm run release:vps` génère l'archive statique prête à transférer ; la configuration Nginx et le script d'installation sont dans `deploy/`.
 
 Le manifeste permet une utilisation en fenêtre autonome sur les navigateurs compatibles. Le service worker de production précharge le shell, les scripts, les styles et les polices. Après une première visite terminée en ligne, le jeu peut être rouvert hors connexion. Le service worker nécessite HTTPS ou localhost et n’est pas activé dans le serveur de développement Vite. Lors d’une mise à jour, une actualisation peut être nécessaire.
 

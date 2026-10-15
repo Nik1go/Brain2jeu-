@@ -14,7 +14,7 @@ type Page='home'|'progress'|'profile'|'modes'|'tutorial'|'game'|'result'|'train'
 type Result={session:Session;firstRecord:boolean;newRecord:boolean;best:number};
 const format=(n:number)=>n.toLocaleString('fr-FR');
 const gameInfo=[{id:'mirror',title:'Miroirs cachés',category:'Mémoire',description:'Observe. Mémorise. Trouve la sortie.',tag:'À TOI DE JOUER',Art:MirrorsArt},{id:'train',title:'Petit train',category:'Organisation',description:'Chaque train dans la bonne gare.',tag:'À TOI DE JOUER',Art:TrainArt},{id:'math',title:'Calcul mental',category:'Rapidité',description:'Fais chauffer tes neurones.',tag:'BIENTÔT',Art:MathArt},{id:'zip',title:'Fil à fil',category:'Logique',description:'Un chemin, des chiffres, un déclic.',tag:'BIENTÔT',Art:ZipArt}];
-function Logo(){return <span className="brand"><span className="brand-mark"><Zap size={25} fill="currentColor" strokeWidth={1.8}/></span>déclic<span className="brand-dot">.</span></span>}
+function Logo(){return <span className="brand"><span className="brand-mark"><Zap size={25} fill="currentColor" strokeWidth={1.8}/></span>Brain2jeu<span className="brand-dot">.</span></span>}
 function Modal({children,onClose,title}:{children:ReactNode;onClose:()=>void;title:string}){
   const ref=useRef<HTMLDialogElement>(null);
   useEffect(()=>{ref.current?.showModal();},[]);
@@ -49,7 +49,7 @@ export default function App(){
   if(page==='tutorial')return <Tutorial onDone={()=>{commit(p=>({...p,tutorialDone:true}));navigate(tutorialReturn);}} onExit={()=>navigate(tutorialReturn==='game'?'modes':'profile')}/>;
   return <div className={`app ${progress.reducedMotion?'reduce-motion':''}`}>
     <aside className="sidebar">
-      <button className="logo-button" onClick={()=>navigate('home')} aria-label="Déclic, accueil"><Logo/></button>
+      <button className="logo-button" onClick={()=>navigate('home')} aria-label="Brain2jeu, accueil"><Logo/></button>
       <div className="sidebar-label">TON ESPACE</div>
       <nav className="main-nav" aria-label="Navigation principale">{[{id:'home',label:'À toi de jouer',Icon:Gamepad2},{id:'progress',label:'Tes progrès',Icon:BarChart3},{id:'profile',label:'Ton profil',Icon:UserRound}].map(({id,label,Icon})=><button key={id} className={active===id?'active':''} onClick={()=>navigate(id as Page)} aria-current={active===id?'page':undefined}><Icon size={21}/><span>{label}</span>{active===id&&<span className="nav-dot"/>}</button>)}</nav>
       <div className="sidebar-note"><span className="tiny-spark"><Sparkles size={22}/></span><strong>Un petit moment pour toi.</strong><p>À ton rythme.<br/>Juste pour le plaisir.</p><span className="note-line"/></div>

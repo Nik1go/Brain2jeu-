@@ -1,11 +1,12 @@
 {
-  "name": "declic-jeux",
+  "name": "brain2jeu",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
+    "release:vps": "npm run build && node scripts/package-vps.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "native:sync": "npm run build && cap sync",
