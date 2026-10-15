@@ -9,7 +9,7 @@ export const LEVELS = [
   [5,8], [5,9], [5,10], [6,10], [6,11], [6,12], [6,13], [6,14], [6,15],
 ].map(([size, mirrors]) => ({ size, mirrors }));
 export const OBSERVATION_MS = 3000;
-export const PATH_REPLAY_MS = 1100;
+export const PATH_REPLAY_MS = 500;
 export const PATH_HOLD_MS = 450;
 export const VERDICT_START_MS = PATH_REPLAY_MS + PATH_HOLD_MS;
 export const VERDICT_MS = 650;
