@@ -1,6 +1,6 @@
 # Brain2jeu
 
-Une application de mini-jeux cérébraux en français, responsive dès **360 px**, construite avec React, TypeScript et Vite. Deux jeux sont entièrement jouables : **Mémoire — Miroirs cachés** et **Organisation — Petit train**. Calcul mental et Fil à fil sont présentés comme à venir.
+Une application de mini-jeux cérébraux en français, responsive dès **360 px**, construite avec React, TypeScript et Vite. Trois jeux sont entièrement jouables : **Mémoire — Miroirs cachés**, **Organisation — Petit train** et **Rapidité — Calcul mental**. Fil à fil est présenté comme à venir.
 
 ## Démarrage
 
@@ -12,10 +12,28 @@ npm run dev
 Ouvrir l’adresse affichée par Vite. Pour tester sur un téléphone du même réseau : `npm run dev -- --host 0.0.0.0`, puis ouvrir l’adresse IP locale du PC avec le port indiqué. Le pare-feu doit autoriser le serveur local.
 
 ```sh
-npm test         # tests des deux moteurs, du rendu et des records
+npm test         # tests des trois moteurs, du rendu et des records
 npm run build   # vérification TypeScript + dist de production
 npm run preview # aperçu de la version compilée
 ```
+
+## Calcul mental
+
+Sa carte ouvre le choix de **trois niveaux, tous accessibles**, chacun avec son record :
+
+- **1 · Petits nombres** : petits entiers, signes et multiplications jusqu’à 12, puis opérations combinées.
+- **2 · Grands calculs** : opérandes jusqu’à 999 et multiplications jusqu’à 50, avec **une seule opération par question**, à tous les paliers.
+- **3 · Finance** : parts en pourcentage, prix après hausse ou remise, puis deux variations successives à partir de 15 bonnes réponses. Les montants vont de 100 à 10 000 €. Le texte distingue le montant du pourcentage du prix final. Les réponses restent entières, sans arrondi.
+
+Quatre réponses neutres en grille 2 × 2, validation immédiate, sans défilement pendant la partie dès 360 px. Une réserve commune démarre à **10 s** sur une capacité de **11 s**. Bonne réponse : **+2 s et +100 points** ; erreur : **−5 s**, sans retrait de points. Le temps continue pendant les 200 ms de correction. À zéro, la partie se termine immédiatement, même entre deux calculs. Les doubles touchers et les réponses tardives sont refusés.
+
+Dans les deux niveaux arithmétiques, additions, soustractions et multiplications entières uniquement ; signes négatifs entre parenthèses, priorités respectées. Chaque niveau se complexifie toutes les cinq bonnes réponses cumulées, sans indicateur de progression pendant la partie. Les nombres restent bornés. Dans les trois niveaux, les quatre propositions forment un groupe de nombres proches : par exemple 48, 50, 52 et 55 pour un résultat de 50. L’écart total est limité à 6, 9, 15 ou 30 unités selon la taille du résultat. La bonne réponse peut être la plus petite, la plus grande ou l’une des deux valeurs centrales ; sa position à l’écran est aussi mélangée. En Finance, les propositions restent positives ou nulles. Les six dernières questions ne sont pas répétées.
+
+Le tutoriel propose un essai adapté au niveau choisi, sans chrono ni points, au premier départ et reste accessible dans **Profil → Tutoriel · Calcul mental** ou depuis le choix des niveaux. Le résultat présente score, record du niveau, bonnes réponses/réponses, précision et durée réelle. **Rejouer** conserve le niveau ; **Menu** revient à leur sélection. Une question sans réponse ne compte pas comme une erreur. Tutoriel, records séparés et 100 dernières parties sont sauvegardés sous `declic.calcul-mental.v1` et intégrés aux progrès globaux. Les anciens records et parties sont conservés dans Petits nombres.
+
+Les réglages sont regroupés dans `src/math/config.ts` (`MATH_RULES`, `MATH_LEVELS`, `MATH_DIFFICULTIES`, `LARGE_DIFFICULTIES`). `expressions.ts` génère et évalue les calculs sans `eval`, `choices.ts` construit les propositions proches, `distractors.ts` les applique aux calculs arithmétiques, `finance.ts` gère les pourcentages, `clock.ts` gère une échéance avec `performance.now()`, `scoring.ts` compte les réponses, `game.ts` coordonne les transitions, `storage.ts` persiste les résultats et `MathExperience.tsx` assure l’affichage. Le contrôle de l’échéance reste indépendant des animations, y compris après chaque bonus ou pénalité et au retour d’un onglet en arrière-plan. Les préférences de son et d’animations réduites du profil sont respectées.
+
+Les tests vérifient notamment 7 000 questions Petits nombres, 3 500 Grands calculs et 7 000 Finance, l’opération unique en Grands calculs, les signes et priorités, les pourcentages successifs, les choix uniques et proches, la variation du rang et de la position de la bonne réponse, les bornes de difficulté, le plafond temporel, les pénalités fatales, l’expiration pendant une transition, les réponses tardives, le double comptage, le rejeu dans le même niveau, la précision, les records séparés et la migration des sauvegardes.
 
 ## Petit train
 
