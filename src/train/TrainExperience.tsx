@@ -37,7 +37,7 @@ export function TrainExperience({ progress, onProgress, onExit, sound, reducedMo
     setCompleted({ result: saved.result, best: saved.progress.best[game.network.level], newRecord: saved.newRecord });
     setScreen('result');
   }, [progress, save]);
-  if (screen === 'game') return <TrainPlay key={gameKey} level={level} previous={previous.current} onGenerated={game => { previous.current = { signature: game.network.signature, colors: game.schedule.map(s => s.colorId) }; }} onFinish={finish} onQuit={() => setScreen('levels')} sound={sound} reducedMotion={reducedMotion} />;
+  if (screen === 'game') return <TrainPlay key={gameKey} level={level} previous={previous.current} onGenerated={game => { previous.current = { signature: game.network.signature, colors: game.schedule.map(s => s.colorId) }; }} onFinish={finish} onQuit={() => setScreen('levels')} onRestart={() => setGameKey(k => k + 1)} sound={sound} reducedMotion={reducedMotion} />;
   if (screen === 'tutorial') return <TrainTutorial reducedMotion={reducedMotion} onExit={() => setScreen(tutorialReturn === 'game' ? 'levels' : 'settings')} onDone={() => { save({ ...progress, tutorialDone: true }); setScreen(tutorialReturn); }} />;
   const nextLevel = completed ? completed.result.level + 1 : 1;
   return <main className={`train-hub ${reducedMotion ? 'reduce-motion' : ''}`}>

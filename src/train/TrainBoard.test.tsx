@@ -25,7 +25,7 @@ describe('interface Petit train', () => {
     expect(html).toContain('2 minutes');
   });
   it('affiche la pause et désactive les aiguillages du plateau en pause', () => {
-    const html = renderToStaticMarkup(<TrainPlay level={3} previous={{}} onGenerated={() => {}} onFinish={() => {}} onQuit={() => {}} sound={false} reducedMotion={false} />);
+    const html = renderToStaticMarkup(<TrainPlay level={3} previous={{}} onGenerated={() => {}} onFinish={() => {}} onQuit={() => {}} onRestart={() => {}} sound={false} reducedMotion={false} />);
     expect(html).toContain('Mettre la partie en pause');
     const game = { ...newTrainGame(8), paused: true };
     const paused = renderToStaticMarkup(<TrainBoard game={game} onToggle={() => {}} />);

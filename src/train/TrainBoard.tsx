@@ -1,16 +1,18 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { TRAIN_COLORS, TRAIN_RULES } from './config';
-import { line, pathLength, piecePath, piecePosition, positionOnRoute, splitPath } from './network';
+import { JUNCTION_RADIUS, pathLength, positionOnRoute } from './network';
 import type { Point, TrackPiece } from './network';
 import type { MovingTrain, TrainGame } from './simulation';
+import { junctionRail, railPath } from './rails';
 
 function Rail({ pieces, active = false }: { pieces: TrackPiece[]; active?: boolean }) {
-  return <g className={active ? 'rail rail-active' : 'rail'}>{pieces.map((piece, i) => <g key={i}>
-    <path d={piecePath(piece)} className="rail-bed" />
-    <path d={piecePath(piece)} className="rail-sleepers" />
-    <path d={piecePath(piece)} className="rail-steel" />
-    <path d={piecePath(piece)} className="rail-center" />
-  </g>)}</g>;
+  const d = railPath(pieces);
+  return <g className={active ? 'rail rail-active' : 'rail'}>
+    <path d={d} className="rail-bed" />
+    <path d={d} className="rail-sleepers" />
+    <path d={d} className="rail-steel" />
+    <path d={d} className="rail-center" />
+  </g>;
 }
 function Tree({ x, y, size = 1, variant = 0 }: Point & { size?: number; variant?: number }) {
   return <g transform={`translate(${x} ${y}) scale(${size})`}>
@@ -48,6 +50,7 @@ export function TrainSprite({ train }: { train: MovingTrain }) {
 }
 export function TrainBoard({ game, onToggle, highlight, interactive = true }: { game: TrainGame; onToggle: (id: number) => void; highlight?: number; interactive?: boolean }) {
   const { network } = game;
+  const railId = useId();
   const scenery = useMemo(() => {
     let seed = network.scenerySeed + 1;
     const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
@@ -65,6 +68,11 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
       <defs>
         <radialGradient id="forest-light"><stop stopColor="#E8EED3" /><stop offset="1" stopColor="#CCDDBB" /></radialGradient>
         <pattern id="forest-grain" width="27" height="29" patternUnits="userSpaceOnUse"><circle cx="4" cy="8" r="1" fill="#9EB78B" opacity=".25" /><path d="m18 23 1-3 2 3" stroke="#A0B98D" opacity=".35" fill="none" /></pattern>
+        <mask id={`${railId}-outside-junctions`} maskUnits="userSpaceOnUse" x="0" y="0" width={network.width} height={network.height}>
+          <rect width={network.width} height={network.height} fill="white" />
+          {network.junctions.map(j => <circle key={j.id} cx={j.point.x} cy={j.point.y} r={JUNCTION_RADIUS - 1} fill="black" />)}
+        </mask>
+        {network.junctions.map(j => <clipPath key={j.id} id={`${railId}-junction-${j.id}`}><circle cx={j.point.x} cy={j.point.y} r={JUNCTION_RADIUS} /></clipPath>)}
       </defs>
       <rect width="360" height="620" fill="url(#forest-light)" />
       <path d="M-30 410Q70 440 143 365T387 310" stroke="#BACFA7" strokeWidth="77" fill="none" opacity=".27" />
@@ -72,11 +80,16 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
       <rect width="360" height="620" fill="url(#forest-grain)" />
       <g aria-hidden="true">{scenery.map((p, i) => <Tree key={i} {...p} />)}</g>
       <g aria-hidden="true">
-        <Rail pieces={network.root.pieces} />
-        {network.junctions.map(j => <g key={j.id}><Rail pieces={j.straight.pieces} /><Rail pieces={j.turn.pieces} /></g>)}
+        {network.junctions.map(j => <circle key={j.id} className="junction-disc" cx={j.point.x} cy={j.point.y} r={JUNCTION_RADIUS} />)}
+        <g mask={`url(#${railId}-outside-junctions)`}>
+          <Rail pieces={network.root.pieces} />
+          {network.junctions.map(j => <g key={j.id}><Rail pieces={j.straight.pieces} /><Rail pieces={j.turn.pieces} /></g>)}
+        </g>
         {network.junctions.map(j => <g key={j.id}>
-          <circle cx={j.point.x} cy={j.point.y} r="25" fill="#C1D2AB" stroke="#9DB28B" strokeWidth="1" />
-          <Rail pieces={(() => { const route = game.switches[j.id] ? j.turn : j.straight, start = route.pieces[0].start, angle = piecePosition(route.pieces[0], 0).angle * Math.PI / 180; return [line({ x: start.x - Math.cos(angle) * 8, y: start.y - Math.sin(angle) * 8 }, start), ...splitPath(route.pieces, route.pieces[0].length + 8).before]; })()} active />
+          <g clipPath={`url(#${railId}-junction-${j.id})`}>
+            <path className="junction-idle-route" d={railPath(junctionRail(game.switches[j.id] ? j.straight : j.turn))} />
+            <Rail pieces={junctionRail(game.switches[j.id] ? j.turn : j.straight)} active />
+          </g>
         </g>)}
       </g>
       {network.stations.map(station => {

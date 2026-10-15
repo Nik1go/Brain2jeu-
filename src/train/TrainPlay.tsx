@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Clock3, Pause, Play, TrainFront } from 'lucide-react';
+import { Clock3, Pause, Play, RotateCcw, TrainFront } from 'lucide-react';
 import { TRAIN_RULES } from './config';
 import { advanceTrains, newTrainGame, setTrainPaused, toggleJunction } from './simulation';
 import type { TrainGame } from './simulation';
 import { newTrainClock, pauseTrainClock, tickTrainClock } from './time';
 import { TrainBoard } from './TrainBoard';
-export function TrainPlay({ level, previous, onGenerated, onFinish, onQuit, sound, reducedMotion }: {
+export function TrainPlay({ level, previous, onGenerated, onFinish, onQuit, onRestart, sound, reducedMotion }: {
   level: number; previous: { signature?: string; colors?: string[] }; onGenerated: (game: TrainGame) => void;
-  onFinish: (game: TrainGame, id: string) => void; onQuit: () => void; sound: boolean; reducedMotion: boolean;
+  onFinish: (game: TrainGame, id: string) => void; onQuit: () => void; onRestart: () => void; sound: boolean; reducedMotion: boolean;
 }) {
   const [game, setGame] = useState(() => newTrainGame(level, { previousSignature: previous.signature, previousColors: previous.colors }));
   const clock = useRef(newTrainClock(performance.now())), id = useRef(crypto.randomUUID()), done = useRef(false);
@@ -49,11 +49,11 @@ export function TrainPlay({ level, previous, onGenerated, onFinish, onQuit, soun
       <button className="train-pause-button" aria-label="Mettre la partie en pause" onClick={() => pause(true)}><Pause size={19} fill="currentColor" /></button>
     </header>
     <div className="train-play-field"><TrainBoard game={game} onToggle={toggle} interactive={!game.paused} /></div>
-    {game.paused && <TrainPause onResume={() => pause(false)} onQuit={onQuit} />}
+    {game.paused && <TrainPause onResume={() => pause(false)} onQuit={onQuit} onRestart={onRestart} />}
   </main>;
 }
-function TrainPause({ onResume, onQuit }: { onResume: () => void; onQuit: () => void }) {
+function TrainPause({ onResume, onQuit, onRestart }: { onResume: () => void; onQuit: () => void; onRestart: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { dialog.current?.showModal(); }, []);
-  return <dialog ref={dialog} className="train-pause-dialog" aria-labelledby="train-pause-title" onCancel={e => { e.preventDefault(); onResume(); }}><span className="train-pause-icon"><Pause size={28} /></span><h2 id="train-pause-title">Petite pause.</h2><p>Les trains et le temps t’attendent.</p><button className="train-primary" autoFocus onClick={onResume}><Play size={17} />Reprendre</button><button className="train-text-button" onClick={onQuit}>Quitter la partie</button></dialog>;
+  return <dialog ref={dialog} className="train-pause-dialog" aria-labelledby="train-pause-title" onCancel={e => { e.preventDefault(); onResume(); }}><span className="train-pause-icon"><Pause size={28} /></span><h2 id="train-pause-title">Petite pause.</h2><p>Les trains et le temps t’attendent.</p><button className="train-primary" autoFocus onClick={onResume}><Play size={17} />Reprendre</button><button className="train-secondary" onClick={onRestart}><RotateCcw size={17} />Recommencer la partie</button><small className="train-restart-hint">Une nouvelle carte, au même niveau.</small><button className="train-text-button" onClick={onQuit}>Quitter la partie</button></dialog>;
 }

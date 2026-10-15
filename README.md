@@ -22,12 +22,13 @@ npm run preview # aperçu de la version compilée
 - **8 niveaux uniquement**, de 4 à 11 gares. Les départs durent 120 secondes ; à zéro, les derniers trains continuent jusqu’à leur gare avant le résultat. 0 à 3 fautes débloquent la suite. Une quatrième faute laisse la partie se terminer pour s’entraîner. Les niveaux acquis restent accessibles.
 - **Réseau aléatoire sans boucle** : arbres orthogonaux générés sur une grille, avec branches imbriquées, virages fixes et aiguillages orientés dans plusieurs directions. Les cellules occupées empêchent les croisements et les fusions. Dès le niveau 3, les deux branches du premier aiguillage contiennent d’autres choix. La topologie, les couleurs et le décor changent au rejeu ; le nombre d’aiguillages et les limites de longueur/profondeur restent bornés. Une approche de plus de 220 unités (plus de 3,5 s à vitesse normale) précède le premier choix.
 - **Aiguillages binaires** : droit ou un virage de 90°, indiqué par le rail actif. Un toucher change aussi la direction d’une locomotive encore dans le cercle de l’aiguillage. La nouvelle trajectoire conserve sa position et sa tangente grâce à une courbe de raccordement ; le trajet déjà parcouru par les wagons reste conservé. Après la sortie du cercle, le changement concerne les trains suivants. Boutons tactiles de 44 px minimum, utilisables au clavier.
+- **Rails continus** : lignes et courbes partagent un tracé SVG par voie, sans embouts superposés ni redémarrage des traverses à chaque morceau. Dans les cercles, la voie sélectionnée se raccorde aux rails extérieurs par un masque et un découpage ; l’autre direction reste discrètement indiquée.
 - **Vagues irrégulières** : rushs de 5 à 10 trains selon le niveau, petits groupes au rythme variable et trains isolés entourés d’accalmies de 4,5 à 6,5 s. L’ordre, la taille des groupes et les intervalles sont tirés au sort à chaque partie. Les rushs gardent au moins 1,9 s entre deux départs et sont suivis d’un répit ; la vitesse des trains reste constante. La densité de référence augmente progressivement en quatre phases et avec le niveau. Les apparitions continuent jusqu’à 120 s. Le chronomètre reste ensuite à zéro, les aiguillages restent actifs et le résultat attend toutes les livraisons.
 - **Couleurs équilibrées** par sacs mélangés. Chaque train partage exactement la couleur et le symbole de sa gare. Les séquences identiques à la précédente sont évitées.
 - **Score** : `100 + 25 × (gares − 2)` par bonne livraison, zéro point et une faute pour une mauvaise. Un identifiant de train empêche le double comptage.
 - **Tutoriel interactif** au premier départ et depuis les paramètres de Petit train ou le profil Déclic. Aucun résultat du tutoriel n’est enregistré.
 - **Persistance locale** séparée (`declic.petit-train.v1`) : niveaux, tutoriel, record par niveau et 100 dernières parties. Les parties de Petit train rejoignent les statistiques de Déclic. En cas de stockage bloqué, la progression reste en mémoire pour la visite.
-- **Pause** : le bouton du plateau et la touche Échap suspendent ensemble le chronomètre, les trains et les départs. Reprendre conserve exactement le temps actif. Quitter depuis la pause abandonne la tentative sans enregistrer de résultat.
+- **Pause** : le bouton du plateau et la touche Échap suspendent ensemble le chronomètre, les trains et les départs. Reprendre conserve exactement le temps actif. « Recommencer la partie » lance le même niveau avec une autre topologie, de nouveaux départs, un chrono de 2 minutes et les compteurs à zéro. Recommencer ou quitter abandonne la tentative sans enregistrer de résultat ni modifier les records ou les niveaux débloqués.
 - Sans pause manuelle, le temps continue en arrière-plan. Au retour, la simulation rattrape chaque apparition et livraison, sans faire disparaître les trains sans résultat.
 
 ### Régler ou étendre Petit train
@@ -37,6 +38,7 @@ Tous les paramètres sont dans `src/train/config.ts` : `TRAIN_RULES` (temps de d
 ```text
 src/train/config.ts          Niveaux, couleurs et réglages
 src/train/network.ts         Génération, géométrie commune au rendu et au mouvement
+src/train/rails.ts           Tracés continus et raccords visuels des aiguillages
 src/train/waves.ts           Vagues aléatoires, apparitions et sacs de couleurs
 src/train/simulation.ts      Circulation, redirection dans les cercles, arrivée des derniers trains
 src/train/time.ts            Horloge active et exclusion des durées de pause
