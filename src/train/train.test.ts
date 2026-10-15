@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { levelConfig, TRAIN_COLORS, TRAIN_LEVELS, TRAIN_RULES } from './config';
+import { levelConfig, TRAIN_COLORS, TRAIN_LEVELS, TRAIN_RULES, TRAIN_WAVE_RULES } from './config';
 import { destination, ENTRY_ZONES, pathLength, positionOnRoute } from './network';
 import { emptyTrainScore, levelPassed, pointsPerTrain, recordDelivery } from './scoring';
 import { advanceTrains, newTrainGame, setTrainPaused, spawnTrain, toggleJunction } from './simulation';
@@ -17,7 +17,7 @@ function parked(offset: number, turn = false) {
 }
 
 describe('départs pendant deux minutes', () => {
-  it('respecte les quatre rythmes et leur minimum', () => {
+  it('augmente progressivement la densité de référence', () => {
     [0, 30_000, 60_000, 90_000].map(t => spawnIntervalMs(1, t)).forEach((interval, i) => expect(interval).toBeCloseTo([4140, 3600, 3240, 2880][i]));
     expect(spawnIntervalMs(8, 90_000)).toBeCloseTo(2040);
     for (const { level } of TRAIN_LEVELS) for (const t of [0, 30_000, 60_000, 90_000]) expect(spawnIntervalMs(level, t)).toBeGreaterThanOrEqual(1800);
@@ -25,7 +25,7 @@ describe('départs pendant deux minutes', () => {
   it('continue les apparitions jusqu’au voisinage de zéro, sans marge retirée pour le trajet', () => {
     for (const { level } of TRAIN_LEVELS) {
       const game = newTrainGame(level, { random: seeded(level) }), schedule = game.schedule;
-      expect(schedule.at(-1)!.atMs).toBeGreaterThanOrEqual(120_000 - spawnIntervalMs(level, 119_999));
+      expect(schedule.at(-1)!.atMs).toBeGreaterThanOrEqual(120_000 - TRAIN_WAVE_RULES.quietGapMs[1]);
       expect(schedule.every(s => s.atMs < 120_000)).toBe(true);
       for (let i = 1; i < schedule.length; i++) {
         const gap = schedule[i].atMs - schedule[i - 1].atMs;
@@ -58,6 +58,16 @@ describe('départs pendant deux minutes', () => {
       expect(game.elapsedMs).toBeGreaterThan(120_000); expect(game.elapsedMs).toBeLessThan(144_000);
       expect(advanceTrains(game, 250_000)).toBe(game);
     }
+  });
+  it('ne termine pas pendant une accalmie sans train, puis livre le départ juste avant zéro', () => {
+    let game = newTrainGame(1, { random: seeded(1) });
+    game = { ...game, schedule: [{ ...game.schedule[0], atMs: 1200 }, { ...game.schedule[1], atMs: 119_900 }] };
+    game = advanceTrains(game, 60_000);
+    expect(game.trains).toHaveLength(0); expect(game.spawnIndex).toBe(1); expect(game.over).toBe(false);
+    game = advanceTrains(game, 120_000);
+    expect(game.trains).toHaveLength(1); expect(game.spawnIndex).toBe(2); expect(game.over).toBe(false);
+    game = advanceTrains(game, 240_000);
+    expect(game.over).toBe(true); expect(game.deliveries).toHaveLength(2);
   });
 });
 
@@ -111,7 +121,7 @@ describe('aiguillage modifiable dans tout le cercle', () => {
 
 describe('pause réelle', () => {
   it('gèle temps, trains, départs et aiguillages, puis reprend au même instant', () => {
-    let game = advanceTrains(newTrainGame(1), 10_000); game = setTrainPaused(game, true, 10_200);
+    let game = advanceTrains(newTrainGame(1, { random: seeded(1) }), 10_000); game = setTrainPaused(game, true, 10_200);
     const snapshot = game;
     expect(advanceTrains(game, 180_000)).toBe(snapshot); expect(toggleJunction(game, 0, 180_000)).toBe(snapshot);
     game = setTrainPaused(game, false); expect(game.elapsedMs).toBe(10_200);
@@ -126,7 +136,7 @@ describe('pause réelle', () => {
     clock = tickTrainClock(clock, 260_000); expect(clock.elapsedMs).toBe(66000);
   });
   it('gèle aussi les derniers trains après la fin des apparitions', () => {
-    let game = setTrainPaused(advanceTrains(newTrainGame(1), 120_000), true);
+    let game = setTrainPaused(advanceTrains(newTrainGame(1, { random: seeded(1) }), 120_000), true);
     const pending = game.trains; expect(advanceTrains(game, 200_000).trains).toBe(pending);
     game = advanceTrains(setTrainPaused(game, false), 200_000); expect(game.over).toBe(true);
   });
@@ -134,7 +144,7 @@ describe('pause réelle', () => {
 
 describe('score et progression', () => {
   it('continue après quatre fautes, puis compte tous les trains une seule fois', () => {
-    let game = newTrainGame(1); const target = destination(game.network, game.switches);
+    let game = newTrainGame(1, { random: seeded(1) }); const target = destination(game.network, game.switches);
     const wrong = game.network.stations.find(s => s.id !== target.id)!.color.id;
     game = { ...game, schedule: game.schedule.map(s => ({ ...s, colorId: wrong })) };
     game = advanceTrains(game, 60_000); expect(game.errors).toBeGreaterThan(4); expect(game.over).toBe(false);
@@ -167,7 +177,7 @@ describe('score et progression', () => {
     expect(finishTrainGame({ ...p, unlocked: 8 }, complete(8), 'eight').progress.unlocked).toBe(8);
   });
   it('refuse une partie avant les dernières livraisons, même si le timer est à zéro', () => {
-    const game = advanceTrains(newTrainGame(1), 120_000);
+    const game = advanceTrains(newTrainGame(1, { random: seeded(1) }), 120_000);
     expect(() => finishTrainGame(emptyTrainProgress(), game, 'pending')).toThrow();
     expect(() => finishTrainGame(emptyTrainProgress(), newTrainGame(1), 'early')).toThrow();
     expect(() => finishTrainGame(emptyTrainProgress(), advanceTrains(game, 240_000), 'done')).not.toThrow();

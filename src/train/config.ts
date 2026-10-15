@@ -25,6 +25,17 @@ export const TRAIN_RULES = {
   absoluteMinimumSeconds: 1.8,
   feedbackMs: 750,
 } as const;
+export const TRAIN_WAVE_RULES = {
+  minimumGapMs: 1_900,
+  rushSize: [5, 7],
+  flowSize: [2, 4],
+  levelsPerExtraRushTrain: 2,
+  rushSlackFraction: [.08, .25],
+  flowMultiplier: [.8, 1.2],
+  recoveryMultiplier: [1.15, 1.55],
+  recoveryGapMs: [2_800, 5_500],
+  quietGapMs: [4_500, 6_500],
+} as const;
 export type TrainColor = typeof TRAIN_COLORS[number];
 export type Random = () => number;
 export function levelConfig(level: number) {
