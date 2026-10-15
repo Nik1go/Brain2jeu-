@@ -19,32 +19,35 @@ npm run preview # aperçu de la version compilée
 
 ## Petit train
 
-- **8 niveaux uniquement**, de 4 à 11 gares. Une partie dure exactement 120 secondes ; 0 à 3 fautes débloquent la suite. Une quatrième faute laisse la partie se terminer pour s’entraîner. Les niveaux acquis restent accessibles.
-- **Réseau aléatoire sans boucle** : arbre ferroviaire à voies latérales séparées, transformé pour les quatre zones d’entrée verticales. Les positions, les couleurs et le décor sont renouvelés ; les variations de longueur sont bornées et le nombre d’aiguillages reste fixe par niveau.
-- **Aiguillages binaires** : droit ou un virage de 90°, indiqué par le rail actif. Le choix est capturé 18 unités avant le centre ; un train engagé garde la trajectoire choisie. Boutons tactiles de 44 px minimum, utilisables au clavier.
-- **Quatre phases continues** : intervalle de base `max(2.4, 3.6 − 0.15 × (niveau − 1))` secondes, multiplié par 1.15 / 1 / 0.90 / 0.80. Plancher absolu 1.8 s, vitesse constante. Les apparitions s’arrêtent selon le plus long trajet, avec 500 ms de marge.
+- **8 niveaux uniquement**, de 4 à 11 gares. Les départs durent 120 secondes ; à zéro, les derniers trains continuent jusqu’à leur gare avant le résultat. 0 à 3 fautes débloquent la suite. Une quatrième faute laisse la partie se terminer pour s’entraîner. Les niveaux acquis restent accessibles.
+- **Réseau aléatoire sans boucle** : arbres orthogonaux générés sur une grille, avec branches imbriquées, virages fixes et aiguillages orientés dans plusieurs directions. Les cellules occupées empêchent les croisements et les fusions. Dès le niveau 3, les deux branches du premier aiguillage contiennent d’autres choix. La topologie, les couleurs et le décor changent au rejeu ; le nombre d’aiguillages et les limites de longueur/profondeur restent bornés. Une approche de plus de 220 unités (plus de 3,5 s à vitesse normale) précède le premier choix.
+- **Aiguillages binaires** : droit ou un virage de 90°, indiqué par le rail actif. Un toucher change aussi la direction d’une locomotive encore dans le cercle de l’aiguillage. La nouvelle trajectoire conserve sa position et sa tangente grâce à une courbe de raccordement ; le trajet déjà parcouru par les wagons reste conservé. Après la sortie du cercle, le changement concerne les trains suivants. Boutons tactiles de 44 px minimum, utilisables au clavier.
+- **Quatre phases continues** : intervalle de base `max(2.4, 3.6 − 0.15 × (niveau − 1))` secondes, multiplié par 1.15 / 1 / 0.90 / 0.80. Plancher absolu 1.8 s, vitesse constante. Les apparitions continuent jusqu’à 120 s. Le chronomètre reste ensuite à zéro, les aiguillages restent actifs et le résultat attend toutes les livraisons.
 - **Couleurs équilibrées** par sacs mélangés. Chaque train partage exactement la couleur et le symbole de sa gare. Les séquences identiques à la précédente sont évitées.
 - **Score** : `100 + 25 × (gares − 2)` par bonne livraison, zéro point et une faute pour une mauvaise. Un identifiant de train empêche le double comptage.
 - **Tutoriel interactif** au premier départ et depuis les paramètres de Petit train ou le profil Déclic. Aucun résultat du tutoriel n’est enregistré.
 - **Persistance locale** séparée (`declic.petit-train.v1`) : niveaux, tutoriel, record par niveau et 100 dernières parties. Les parties de Petit train rejoignent les statistiques de Déclic. En cas de stockage bloqué, la progression reste en mémoire pour la visite.
-- Le temps continue en arrière-plan. Au retour, la simulation rattrape chaque apparition et livraison, sans faire disparaître les trains sans résultat.
+- **Pause** : le bouton du plateau et la touche Échap suspendent ensemble le chronomètre, les trains et les départs. Reprendre conserve exactement le temps actif. Quitter depuis la pause abandonne la tentative sans enregistrer de résultat.
+- Sans pause manuelle, le temps continue en arrière-plan. Au retour, la simulation rattrape chaque apparition et livraison, sans faire disparaître les trains sans résultat.
 
 ### Régler ou étendre Petit train
 
-Tous les paramètres sont dans `src/train/config.ts` : `TRAIN_RULES` (temps, rythme, vitesse, marge, feedback), `TRAIN_LEVELS` (nombre de gares) et `TRAIN_COLORS` (couleur et symbole stables). La première série utilise onze couleurs. Pour aller au-delà de onze gares, ajouter des couleurs distinctes et adapter l’espacement / la taille du réseau dans `network.ts` pour préserver les zones tactiles.
+Tous les paramètres sont dans `src/train/config.ts` : `TRAIN_RULES` (temps de départs, rythme, vitesse, feedback), `TRAIN_LEVELS` (nombre de gares) et `TRAIN_COLORS` (couleur et symbole stables). La première série utilise onze couleurs. Pour aller au-delà de onze gares, ajouter des couleurs distinctes et adapter l’espacement / la taille du réseau dans `network.ts` pour préserver les zones tactiles.
 
 ```text
 src/train/config.ts          Niveaux, couleurs et réglages
 src/train/network.ts         Génération, géométrie commune au rendu et au mouvement
 src/train/waves.ts           Phases, apparitions et sacs de couleurs
-src/train/simulation.ts      Circulation, capture des décisions et horloge absolue
+src/train/simulation.ts      Circulation, redirection dans les cercles, arrivée des derniers trains
+src/train/time.ts            Horloge active et exclusion des durées de pause
 src/train/scoring.ts         Points, fautes, résultat unique
 src/train/storage.ts         Progression et records indépendants
 src/train/TrainBoard.tsx     Plateau SVG forestier et boutons tactiles
-src/train/TrainExperience.tsx Niveaux, tutoriel, partie, résultat et paramètres
+src/train/TrainExperience.tsx Niveaux, tutoriel, résultat et paramètres
+src/train/TrainPlay.tsx      Partie, bouton pause et reprise
 ```
 
-Les tests épuisent toutes les combinaisons d’aiguillages pour les huit niveaux et les quatre entrées, vérifient les rythmes, la marge avant 120 s, les sacs, les décisions en cours de virage, le comptage unique, la progression avec 0–3 / 4+ fautes et la persistance.
+Les tests épuisent toutes les combinaisons d’aiguillages pour les huit niveaux et les quatre entrées, vérifient les rythmes, les départs jusqu’à zéro et les livraisons après zéro, les sacs, les corrections de direction dans tout le cercle sans saut de position, la pause, la variété des topologies, le comptage unique, la progression avec 0–3 / 4+ fautes et la persistance.
 
 ## Miroirs cachés — fonctionnement
 

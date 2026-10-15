@@ -26,9 +26,9 @@ export function colorSequence(count: number, colorIds: string[], random: Random 
   return result;
 }
 export function createSchedule(network: Network, random: Random = Math.random, previousColors?: string[]): Spawn[] {
-  const latestSpawn = TRAIN_RULES.durationMs - network.longestDistance / TRAIN_RULES.speed * 1000 - TRAIN_RULES.arrivalMarginMs;
+  const latestSpawn = TRAIN_RULES.durationMs;
   const times: number[] = [];
-  for (let atMs = TRAIN_RULES.firstSpawnMs; atMs <= latestSpawn; atMs += spawnIntervalMs(network.level, atMs)) times.push(atMs);
+  for (let atMs = TRAIN_RULES.firstSpawnMs; atMs < latestSpawn; atMs += spawnIntervalMs(network.level, atMs)) times.push(atMs);
   const colors = colorSequence(times.length, TRAIN_COLORS.slice(0, levelConfig(network.level).stations).map(c => c.id), random, previousColors);
   return times.map((atMs, id) => ({ id, atMs, colorId: colors[id] }));
 }

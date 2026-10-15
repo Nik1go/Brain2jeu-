@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { TRAIN_COLORS, TRAIN_RULES } from './config';
-import { pathLength, piecePath, positionOnRoute } from './network';
+import { line, pathLength, piecePath, piecePosition, positionOnRoute, splitPath } from './network';
 import type { Point, TrackPiece } from './network';
 import type { MovingTrain, TrainGame } from './simulation';
 
@@ -32,17 +32,17 @@ export function TrainSprite({ train }: { train: MovingTrain }) {
     {train.distance > 24 && <g transform={`translate(${wagon.x} ${wagon.y}) rotate(${wagon.angle})`}>
       <rect x="-10" y="-9" width="18" height="18" rx="5" fill="#334D48" opacity=".18" transform="translate(1 2)" />
       <path d="M-9-9H7M-9 9H7" stroke="#344E49" strokeWidth="3" />
-      <rect x="-10" y="-8" width="18" height="16" rx="4" fill={color.color} />
+      <rect x="-10" y="-8" width="18" height="16" rx="4" fill={color.color} stroke="#FDFDF0" strokeWidth="1.5" />
       <rect x="-6" y="-5" width="10" height="10" rx="2" fill="#FFF7E3" opacity=".4" />
     </g>}
     <g transform={`translate(${position.x} ${position.y}) rotate(${position.angle})`}>
       <rect x="-15" y="-10" width="30" height="20" rx="6" fill="#263E37" opacity=".2" transform="translate(1 2)" />
       <path d="M-12-10H9M-12 10H9" stroke="#344E49" strokeWidth="3" strokeLinecap="round" />
-      <rect x="-15" y="-8.5" width="29" height="17" rx="5" fill={color.color} />
+      <rect x="-15" y="-8.5" width="29" height="17" rx="5" fill={color.color} stroke="#FDFDF0" strokeWidth="1.5" />
       <path d="M11-6v12" stroke="#FFE9B4" strokeWidth="3" strokeLinecap="round" />
       <rect x="-11" y="-6" width="7" height="12" rx="2" fill="#274E54" />
       <path d="M-10-4h4" stroke="#CFEBDE" strokeWidth="2" strokeLinecap="round" />
-      <g transform={`rotate(${-position.angle})`}><text x="3" y="4" textAnchor="middle" fill="white" fontSize="12" fontWeight="800">{color.symbol}</text></g>
+      <g transform={`rotate(${-position.angle})`}><text x="3" y="4" textAnchor="middle" fill={color.ink} fontSize="12" fontWeight="800">{color.symbol}</text></g>
     </g>
   </g>;
 }
@@ -76,8 +76,7 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
         {network.junctions.map(j => <g key={j.id}><Rail pieces={j.straight.pieces} /><Rail pieces={j.turn.pieces} /></g>)}
         {network.junctions.map(j => <g key={j.id}>
           <circle cx={j.point.x} cy={j.point.y} r="25" fill="#C1D2AB" stroke="#9DB28B" strokeWidth="1" />
-          <Rail pieces={[(game.switches[j.id] ? j.turn : j.straight).pieces[0]]} active />
-          <circle cx={j.point.x + (network.entryZone.endsWith('right') ? 22 : -22)} cy={j.point.y} r="3.5" fill={game.switches[j.id] ? '#F2C45E' : '#FCF4D7'} stroke="#516E58" strokeWidth="1.5" />
+          <Rail pieces={(() => { const route = game.switches[j.id] ? j.turn : j.straight, start = route.pieces[0].start, angle = piecePosition(route.pieces[0], 0).angle * Math.PI / 180; return [line({ x: start.x - Math.cos(angle) * 8, y: start.y - Math.sin(angle) * 8 }, start), ...splitPath(route.pieces, route.pieces[0].length + 8).before]; })()} active />
         </g>)}
       </g>
       {network.stations.map(station => {
@@ -88,17 +87,17 @@ export function TrainBoard({ game, onToggle, highlight, interactive = true }: { 
             <rect x="-24" y="-25" width="48" height="50" rx="9" fill="#B3BFA0" opacity=".5" transform="translate(2 3)" />
             <rect x="-23" y="-24" width="46" height="48" rx="8" fill="#F2EAD1" stroke="#C9C3A8" />
             <path d="M-17-18h34M-17 18h34" stroke="#D3C4A2" strokeWidth="2" />
-            <rect x="-19" y="-14" width="38" height="28" rx="4" fill={station.color.color} />
+            <rect x="-19" y="-14" width="38" height="28" rx="4" fill={station.color.color} stroke="#334B3B" strokeWidth="1.5" />
             <path d="M-19-1h38" stroke="#FFFAE6" strokeOpacity=".3" strokeWidth="2" />
             <path d="M21-9v18" stroke={station.color.color} strokeWidth="3" strokeLinecap="round" />
           </g>
           <circle r="10" fill={station.color.color} />
-          <text y="5" textAnchor="middle" fill="white" fontSize="17" fontWeight="800">{station.color.symbol}</text>
+          <text y="5" textAnchor="middle" fill={station.color.ink} fontSize="17" fontWeight="800">{station.color.symbol}</text>
         </g>;
       })}
       <g aria-hidden="true">{game.trains.map(train => <TrainSprite key={train.id} train={train} />)}</g>
     </svg>
-    {network.junctions.map(j => <button key={j.id} type="button" className={`junction-touch ${highlight === j.id ? 'tutorial-highlight' : ''}`} style={{ left: `${j.point.x / network.width * 100}%`, top: `${j.point.y / network.height * 100}%`, width: `${(network.stations.length > 9 ? 50 : 56) / network.width * 100}%`, height: `${(network.stations.length > 9 ? 50 : 56) / network.height * 100}%` }} aria-label={`Aiguillage ${j.id + 1}, ${game.switches[j.id] ? `virage à ${j.turnSide === 'left' ? 'gauche' : 'droite'}` : 'tout droit'}`} aria-pressed={game.switches[j.id]} disabled={!interactive || game.over} onClick={() => onToggle(j.id)} />)}
+    {network.junctions.map(j => <button key={j.id} type="button" className={`junction-touch ${highlight === j.id ? 'tutorial-highlight' : ''}`} style={{ left: `${j.point.x / network.width * 100}%`, top: `${j.point.y / network.height * 100}%`, width: `${56 / network.width * 100}%`, height: `${56 / network.height * 100}%` }} aria-label={`Aiguillage ${j.id + 1}, ${game.switches[j.id] ? `virage à ${j.turnSide === 'left' ? 'gauche' : 'droite'}` : 'tout droit'}`} aria-pressed={game.switches[j.id]} disabled={!interactive || game.over || game.paused} onClick={() => onToggle(j.id)} />)}
   </div>;
 }
 

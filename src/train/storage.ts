@@ -19,7 +19,7 @@ export function saveTrainProgress(progress: TrainProgress): boolean {
   try { localStorage.setItem(TRAIN_STORAGE_KEY, JSON.stringify(progress)); return true; } catch { return false; }
 }
 export function finishTrainGame(progress: TrainProgress, game: TrainGame, id: string): { progress: TrainProgress; result: TrainResult; newRecord: boolean } {
-  if (!game.over || game.elapsedMs !== TRAIN_RULES.durationMs || game.trains.length || game.deliveries.length !== game.schedule.length) throw new Error('Only complete, fully delivered train games can be recorded.');
+  if (!game.over || game.elapsedMs < TRAIN_RULES.durationMs || game.trains.length || game.deliveries.length !== game.schedule.length) throw new Error('Only complete, fully delivered train games can be recorded.');
   const existing = progress.history.find(h => h.id === id);
   if (existing) return { progress, result: existing, newRecord: false };
   const level = game.network.level, passed = levelPassed(game.errors);

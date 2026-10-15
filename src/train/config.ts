@@ -1,16 +1,16 @@
 // The first eight levels are data, rather than separate game modes.
 export const TRAIN_COLORS = [
-  { id: 'coral', name: 'corail', color: '#CF594B', symbol: '●' },
-  { id: 'blue', name: 'bleue', color: '#427BC0', symbol: '◆' },
-  { id: 'gold', name: 'dorée', color: '#BD890F', symbol: '★' },
-  { id: 'violet', name: 'violette', color: '#8653B1', symbol: '✿' },
-  { id: 'mint', name: 'menthe', color: '#248574', symbol: '▲' },
-  { id: 'pink', name: 'rose', color: '#BC4F88', symbol: '♥' },
-  { id: 'orange', name: 'orange', color: '#C76B20', symbol: '✚' },
-  { id: 'indigo', name: 'indigo', color: '#53549E', symbol: '■' },
-  { id: 'olive', name: 'olive', color: '#687B27', symbol: '☾' },
-  { id: 'sky', name: 'turquoise', color: '#268EAC', symbol: '⬟' },
-  { id: 'brown', name: 'brune', color: '#875C38', symbol: '✦' },
+  { id: 'coral', name: 'rouge', color: '#E12E27', ink: '#FFFFFF', symbol: '●' },
+  { id: 'blue', name: 'bleue', color: '#176CDB', ink: '#FFFFFF', symbol: '◆' },
+  { id: 'gold', name: 'jaune', color: '#FFDC20', ink: '#29352D', symbol: '★' },
+  { id: 'violet', name: 'violette', color: '#8534C6', ink: '#FFFFFF', symbol: '✿' },
+  { id: 'mint', name: 'verte', color: '#05853A', ink: '#FFFFFF', symbol: '▲' },
+  { id: 'pink', name: 'rose', color: '#D92188', ink: '#FFFFFF', symbol: '♥' },
+  { id: 'orange', name: 'orange', color: '#F58A12', ink: '#29352D', symbol: '✚' },
+  { id: 'indigo', name: 'noire', color: '#202832', ink: '#FFFFFF', symbol: '■' },
+  { id: 'olive', name: 'blanche', color: '#F7F8F2', ink: '#29352D', symbol: '☾' },
+  { id: 'sky', name: 'cyan', color: '#13BED4', ink: '#29352D', symbol: '⬟' },
+  { id: 'brown', name: 'brune', color: '#81481E', ink: '#FFFFFF', symbol: '✦' },
 ] as const;
 export const TRAIN_LEVELS = Array.from({ length: 8 }, (_, i) => ({ level: i + 1, stations: i + 4 }));
 export const TRAIN_RULES = {
@@ -23,7 +23,6 @@ export const TRAIN_RULES = {
   minimumBaseSeconds: 2.4,
   phaseMultipliers: [1.15, 1, .9, .8],
   absoluteMinimumSeconds: 1.8,
-  arrivalMarginMs: 500,
   feedbackMs: 750,
 } as const;
 export type TrainColor = typeof TRAIN_COLORS[number];
