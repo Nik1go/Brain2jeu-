@@ -1,5 +1,13 @@
 # Firebase pour Brain2jeu
 
+## Correction du build VPS sans fichier local
+
+La configuration Web publique officielle du projet est versionnée dans `src/auth/firebase-public.json`. Un checkout neuf peut donc être compilé sur le VPS sans `.env.local` : les boutons Google et e-mail restent actifs. Les variables `VITE_FIREBASE_*` restent des surcharges facultatives ; un projet alternatif exige sa propre clé et son propre identifiant d’application.
+
+La version `assets/index-DwJuuPMV.js`, vérifiée sur le site public, ne contenait ni `apiKey` ni `appId` : Vite avait compilé les variables absentes et désactivé le portail. Le fichier `.env.local` du PC était ignoré par Git et n’arrivait donc pas sur le VPS. Il faut récupérer le correctif, reconstruire le front puis actualiser l’onglet.
+
+Ces valeurs identifient le client Web ; elles ne sont pas des clés d’administration. Voir les [explications Firebase sur les clés du SDK](https://firebase.google.com/docs/projects/api-keys). L’accès aux données reste contrôlé par Auth et les règles Firestore. Ce correctif ne modifie ni les fournisseurs, ni les domaines OAuth, ni les règles d’accès.
+
 L’extension « Mes amis » ajoute des profils publics séparés et des relations privées entre participants. Le fonctionnement et les règles actuelles sont décrits dans [FRIENDS.md](FRIENDS.md). Les mentions ci-dessous sur les records exclusivement locaux décrivent la première livraison de la connexion.
 
 Projet prévu : `brain2jeu`. Domaine du site : `brain2jeu.leofinance.fr`.

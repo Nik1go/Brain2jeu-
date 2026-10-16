@@ -67,9 +67,13 @@ Pour le parcours visuel : démarrer les émulateurs (`npm run firebase:emulators
 
 ## Publication
 
-La compilation distante en mode `--dry-run` a réussi. La publication réelle des nouvelles règles est en attente de l’accord explicite du propriétaire : la vérification automatique d’autorisation a refusé cette modification persistante des accès en production. Ne pas publier le nouveau front avant les règles.
+Les règles Amis ont été publiées sur la base `(default)` de `brain2jeu` le **16 octobre 2026 à 15 h 35 (Paris)**, après l’accord explicite du propriétaire. Les règles précédemment actives ne contenaient ni `publicProfiles` ni `friendships`, ce qui provoquait les messages « L’accès a été refusé » pour la publication et la lecture du profil public.
 
-Publier les règles avant la nouvelle interface :
+Les **103 contrôles Firestore** et le parcours Auth ont réussi dans les émulateurs, puis la compilation distante `--dry-run` a réussi. Après publication, la relecture de la version active a confirmé une correspondance SHA-256 exacte avec le fichier testé (`651bc9973b3919e286e3e8f6925182beb3b66b2c830c1a2693b12066a0ad457a`). Version active vérifiée : `594801ff-9fab-44af-a0d8-a5051f391d05`. La sauvegarde des anciennes règles et les rapports de vérification sont conservés localement dans `artifacts/firestore-rules-before-friends.*` et `artifacts/firestore-rules-after-friends.json`.
+
+Les contrôles de parcours ont été effectués dans les émulateurs ; aucune session personnelle de joueur n’a été utilisée pour un test en production. Pour reprendre une page restée sur l’erreur, l’actualiser puis réessayer.
+
+Pour une prochaine livraison, publier les règles avant la nouvelle interface :
 
 ```sh
 npx firebase deploy --only firestore:rules --project brain2jeu
