@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, ChevronRight, Clock3, HelpCircle, RotateCcw, Target, Trophy, X, Zap } from 'lucide-react';
-import { remainingMs } from './clock';
+import { afterTimeBarPaint, paintMathTime } from './timeBar';
 import { mathLevel, MATH_LEVELS, MATH_RULES } from './config';
 import type { MathLevelId } from './config';
 import { createChoices } from './distractors';
@@ -37,10 +37,10 @@ export function MathExperience({ progress, onProgress, onExit, onTutorialExit, s
   const start = (chosen: MathLevelId) => { setLevel(chosen); setGameKey(k => k + 1); setScreen(progress.tutorialDone ? 'game' : 'tutorial'); };
   if (screen === 'levels') return <main className={`math-hub ${reducedMotion ? 'reduce-motion' : ''}`}>
     <header><button className="math-back" onClick={onExit}><ArrowLeft size={18} />Tous les jeux</button><span className="math-wordmark"><Zap size={18} />calcul mental<span>.</span></span></header>
-    <section className="math-hub-intro"><span className="math-eyebrow">À CHAQUE ENVIE, SON DÉCLIC</span><h1>Trois façons de<br />faire le calcul<span>.</span></h1><p>Petits chiffres, grands défis ou esprit finance.<br />Choisis ton terrain de jeu.</p><div className="math-hub-rules"><span><Clock3 size={14} />10 s au départ</span><span>+2 s / −5 s</span><span>11 s max.</span></div></section>
+    <section className="math-hub-intro"><span className="math-eyebrow">À CHAQUE ENVIE, SON DÉCLIC</span><h1>Trois façons de<br />faire le calcul<span>.</span></h1><p>Petits chiffres, grands défis ou esprit finance.<br />Choisis ton terrain de jeu.</p><div className="math-hub-rules"><span><Clock3 size={14} />10 s au départ</span><span>+2 à +4 s / −5 s</span><span>11 à 15 s max.</span></div></section>
     {storageError && <p className="math-storage" role="status">Le stockage est indisponible. Tes records restent disponibles pendant cette visite.</p>}
     <section className="math-levels" aria-label="Choisir un niveau">{MATH_LEVELS.map(config => <button key={config.id} className={`math-level-card level-${config.id}`} onClick={() => start(config.id)} aria-label={`Niveau ${config.number} · ${config.title}`}>
-      <span className="math-level-number">0{config.number}</span><span className="math-level-copy"><small>NIVEAU {config.number}</small><strong>{config.title}</strong><span>{config.description}</span><em>{config.example}</em><span className="math-level-detail">{config.detail}</span><span className="math-level-best"><Trophy size={13} />Record : {format(progress.bestByLevel[config.id])} pts</span></span><ChevronRight size={20} />
+      <span className="math-level-number">0{config.number}</span><span className="math-level-copy"><small>NIVEAU {config.number}</small><strong>{config.title}</strong><span>{config.description}</span><em>{config.example}</em><span className="math-level-detail">{config.detail}</span><span>Bonne réponse : +{config.bonusMs / 1000} s · {config.capacityMs / 1000} s max.</span><span className="math-level-best"><Trophy size={13} />Record : {format(progress.bestByLevel[config.id])} pts</span></span><ChevronRight size={20} />
     </button>)}</section>
     <button className="math-tutorial-link" onClick={() => setScreen('tutorial')}><HelpCircle size={16} />{progress.tutorialDone ? 'Revoir le tutoriel' : 'Découvrir les règles'}</button>
   </main>;
@@ -85,19 +85,23 @@ export function MathAnswers({ question, feedback, onAnswer, locked = false }: {
 export function MathPlay({ onFinish, sound, reducedMotion, level = 'small' }: { onFinish: (game: MathGame, id: string) => void; sound: boolean; reducedMotion: boolean; level?: MathLevelId }) {
   const [game, setGame] = useState(() => newMathGame(performance.now(), Math.random, level));
   const current = useRef(game), done = useRef(false), id = useRef(crypto.randomUUID());
-  const [now, setNow] = useState(game.clock.startedAt);
+  const timeBar = useRef<HTMLDivElement>(null);
   const finish = useRef(onFinish), audio = useRef<AudioContext | null>(null);
   finish.current = onFinish;
   // The ref is the authoritative state: two events in the same React batch cannot count twice.
   const publish = useCallback((next: MathGame, at: number) => {
+    const previous = current.current;
     current.current = next;
-    setGame(next);
-    setNow(at);
-    if (next.phase === 'over' && !done.current) {
-      done.current = true;
-      finish.current(next, id.current);
-    }
+    paintMathTime(timeBar.current, next.clock, at);
+    // Countdown frames update only the bar, not the entire question or its buttons.
+    if (next !== previous) setGame(next);
   }, []);
+  useEffect(() => {
+    if (game.phase !== 'over') return;
+    return afterTimeBarPaint(() => {
+      if (!done.current) { done.current = true; finish.current(current.current, id.current); }
+    });
+  }, [game.phase]);
   useEffect(() => {
     let raf = 0;
     const sync = () => {
@@ -105,7 +109,7 @@ export function MathPlay({ onFinish, sound, reducedMotion, level = 'small' }: { 
       publish(advanceMathGame(current.current, at), at);
       return at;
     };
-    const frame = () => { sync(); if (!done.current) raf = requestAnimationFrame(frame); };
+    const frame = () => { sync(); if (current.current.phase !== 'over') raf = requestAnimationFrame(frame); };
     raf = requestAnimationFrame(frame);
     document.addEventListener('visibilitychange', sync);
     window.addEventListener('pageshow', sync);
@@ -117,7 +121,7 @@ export function MathPlay({ onFinish, sound, reducedMotion, level = 'small' }: { 
     const checkDeadline = () => {
       const at = performance.now();
       publish(advanceMathGame(current.current, at), at);
-      if (!done.current) wake = window.setTimeout(checkDeadline, Math.max(1, current.current.clock.deadline - at));
+      if (current.current.phase !== 'over') wake = window.setTimeout(checkDeadline, Math.max(1, current.current.clock.deadline - at));
     };
     wake = window.setTimeout(checkDeadline, Math.max(1, game.clock.deadline - performance.now()));
     return () => clearTimeout(wake);
@@ -142,16 +146,16 @@ export function MathPlay({ onFinish, sound, reducedMotion, level = 'small' }: { 
       } catch { /* Sound is optional; input and timing never depend on it. */ }
     }
   };
-  const remaining = remainingMs(game.clock, now);
-  return <main className={`math-play ${reducedMotion ? 'reduce-motion' : ''}${remaining <= 2500 ? ' is-urgent' : ''}`} data-level={level} data-phase={game.phase} data-feedback={game.phase === 'feedback' ? game.feedback?.correct ? 'correct' : 'wrong' : undefined}>
+  return <main className={`math-play ${reducedMotion ? 'reduce-motion' : ''}`} data-level={level} data-phase={game.phase} data-feedback={game.phase === 'feedback' ? game.feedback?.correct ? 'correct' : 'wrong' : undefined}>
     <header className="math-hud"><span>SCORE</span><strong aria-label={`Score : ${game.score}`}>{format(game.score)}</strong></header>
-    <div className="math-time" role="progressbar" aria-label="Réserve de temps en secondes" aria-valuemin={0} aria-valuemax={11} aria-valuenow={Math.ceil(remaining / 1000)}><span style={{ transform: `scaleX(${remaining / MATH_RULES.capacityMs})` }} /></div>
+    {/* React sets the initial fill; the frame loop exclusively owns its live position. */}
+    <div ref={timeBar} className="math-time" role="progressbar" aria-label="Réserve de temps en secondes" aria-valuemin={0} aria-valuemax={game.clock.capacityMs / 1000} aria-valuenow={game.phase === 'over' ? 0 : 10}><span style={{ transform: `scaleX(${game.phase === 'over' ? 0 : MATH_RULES.initialMs / game.clock.capacityMs})` }} /></div>
     <div className={`math-problem${game.question.unit ? ' is-finance' : ''}`}>
       {game.question.context && <p>{game.question.context}</p>}
       <h1 className={game.question.operationCount > 1 || game.question.prompt.length > 19 ? 'is-long' : ''} aria-label={`Calcul : ${game.question.prompt}`}>{game.question.prompt}</h1>
     </div>
     <MathAnswers question={game.question} feedback={game.phase === 'feedback' ? game.feedback : undefined} locked={game.phase !== 'question'} onAnswer={answer} />
-    <span className="sr-only" role="status">{game.phase === 'feedback' ? game.feedback?.correct ? 'Bonne réponse. Plus 2 secondes.' : `Réponse incorrecte. Moins 5 secondes. La bonne réponse était ${displayNumber(game.question.answer)}.` : ''}</span>
+    <span className="sr-only" role="status">{game.phase === 'feedback' ? game.feedback?.correct ? `Bonne réponse. Plus ${mathLevel(game.level).bonusMs / 1000} secondes.` : `Réponse incorrecte. Moins 5 secondes. La bonne réponse était ${displayNumber(game.question.answer)}.` : ''}</span>
   </main>;
 }
 
@@ -174,7 +178,7 @@ export function MathTutorial({ onDone, onExit, reducedMotion, level = 'small' }:
   return <main className={`math-tutorial ${reducedMotion ? 'reduce-motion' : ''}`}>
     <header><button className="icon-button" aria-label="Quitter le tutoriel" onClick={onExit}><ArrowLeft size={20} /></button><span className="math-wordmark"><Zap size={18} />calcul mental<span>.</span></span></header>
     <section className="math-tutorial-intro"><span className="math-eyebrow">UN ESSAI POUR PRENDRE LE RYTHME</span><h1>Le bon calcul,<br />au bon moment<span>.</span></h1><p>Choisis la bonne réponse parmi quatre.<br />Tu commences avec <strong>10 secondes</strong>.</p>
-      <div className="math-rules"><span><Check size={16} /><strong>+2 s</strong><small>Bonne réponse · +100 pts</small></span><span><X size={16} /><strong>−5 s</strong><small>Mauvaise réponse</small></span><span><Clock3 size={16} /><strong>11 s max.</strong><small>À zéro, la partie se termine</small></span></div>
+      <div className="math-rules"><span><Check size={16} /><strong>+{mathLevel(level).bonusMs / 1000} s</strong><small>Bonne réponse · +100 pts</small></span><span><X size={16} /><strong>−5 s</strong><small>Mauvaise réponse</small></span><span><Clock3 size={16} /><strong>{mathLevel(level).capacityMs / 1000} s max.</strong><small>À zéro, la partie se termine</small></span></div>
       <p className="math-practice-label">À toi d’essayer · sans chrono ni points</p>
     </section>
     <div className="math-practice"><h2>{question.prompt}</h2><MathAnswers question={question} feedback={feedback} locked={selected !== null} onAnswer={setSelected} /></div>

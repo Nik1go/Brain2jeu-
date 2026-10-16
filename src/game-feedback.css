@@ -32,6 +32,10 @@
 .legacy-records summary{cursor:pointer}
 .legacy-records .record-row{font-size:10px}
 .reduce-motion .score-gain{animation:none;transform:none;opacity:1}
+.game-screen.is-paused .game-board-area{visibility:hidden}
+.game-screen.is-paused *{animation-play-state:paused!important}
+.pause-emblem{display:flex;align-items:center;justify-content:center;width:54px;height:54px;background:#eee5f9;color:#926bc4;border-radius:18px;margin:0 auto 18px}
+.mirror-pause-menu .pause-restart{width:100%;margin-top:12px;padding:14px 20px;font-size:12px;gap:10px}
 @keyframes verdict-pop{from{opacity:0;transform:translateX(-50%) scale(.55)}to{opacity:1;transform:translateX(-50%) scale(1)}}
 @keyframes score-pop{40%{transform:scale(1.22);color:#419d77}100%{transform:scale(1)}}
 @keyframes score-float{0%{opacity:0;transform:translateY(10px) scale(.85)}20%,65%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-12px)}}

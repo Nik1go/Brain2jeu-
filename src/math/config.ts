@@ -1,7 +1,5 @@
 export const MATH_RULES = {
   initialMs: 10_000,
-  capacityMs: 11_000,
-  bonusMs: 2_000,
   penaltyMs: 5_000,
   points: 100,
   feedbackMs: 200,
@@ -11,9 +9,9 @@ export const MATH_RULES = {
 export type Operator = '+' | '−' | '×';
 export type MathLevelId = 'small' | 'large' | 'finance';
 export const MATH_LEVELS = [
-  { id: 'small', number: 1, title: 'Petits nombres', description: 'Des petits chiffres pour trouver ton rythme.', example: '8 + 7 · 6 × 4', detail: 'Signes, additions et petites multiplications' },
-  { id: 'large', number: 2, title: 'Grands calculs', description: 'De grands nombres, une seule opération à la fois.', example: '145 + 280 · 24 × 15', detail: 'Jusqu’à 999, avec quatre réponses proches' },
-  { id: 'finance', number: 3, title: 'Finance', description: 'Pourcentages, remises et hausses de prix.', example: '20 % de 350 € · 240 € + 15 %', detail: 'Montants, prix finaux et variations successives' },
+  { id: 'small', capacityMs: 11000, number: 1, bonusMs: 2_000, title: 'Petits nombres', description: 'Des petits chiffres pour trouver ton rythme.', example: '8 + 7 · 6 × 4', detail: 'Signes, additions et petites multiplications' },
+  { id: 'large', capacityMs: 15000, number: 2, bonusMs: 3_000, title: 'Grands calculs', description: 'De grands nombres, une seule opération à la fois.', example: '145 + 280 · 24 × 15', detail: 'Jusqu’à 999, avec quatre réponses proches' },
+  { id: 'finance', capacityMs: 15000, number: 3, bonusMs: 4_000, title: 'Finance', description: 'Pourcentages, remises et hausses de prix.', example: '20 % de 350 € · 240 € + 15 %', detail: 'Montants, prix finaux et variations successives' },
 ] as const;
 export const isMathLevel = (value: unknown): value is MathLevelId => MATH_LEVELS.some(level => level.id === value);
 export const mathLevel = (id: MathLevelId) => MATH_LEVELS.find(level => level.id === id)!;

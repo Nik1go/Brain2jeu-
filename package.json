@@ -9,6 +9,9 @@
     "release:vps": "npm run build && node scripts/package-vps.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
+    "firebase:setup": "node scripts/firebase-config.mjs",
+    "firebase:emulators": "npx -y firebase-tools@latest emulators:start --only auth,firestore --project demo-brain2jeu",
+    "test:firebase": "npx -y firebase-tools@latest emulators:exec --only auth,firestore --project demo-brain2jeu \"node scripts/test-firestore-rules.mjs\"",
     "native:sync": "npm run build && cap sync",
     "native:android": "cap add android",
     "native:ios": "cap add ios"
@@ -17,15 +20,23 @@
     "@capacitor/core": "^8.0.0",
     "@fontsource/dm-sans": "^5.3.0",
     "@fontsource/nunito-sans": "^5.3.0",
+    "firebase": "^13.0.0",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
+  "overrides": {
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "1.13.6"
+    }
+  },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0",
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "firebase-tools": "^15.34.0",
     "typescript": "~5.9.3",
     "vite": "^7.1.0",
     "vitest": "^3.2.4"

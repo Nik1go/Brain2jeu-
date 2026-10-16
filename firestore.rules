@@ -1,0 +1,45 @@
+rules_version = '2';
+// users/{uid}: username (3–20 ASCII letters/digits/_), usernameKey (lowercase),
+// createdAt (server timestamp). All fields immutable. Private to this uid.
+// usernames/{usernameKey}: uid (immutable, 1–128 chars). Exact authenticated
+// lookup only; no listing, email, passwords, or public profile directory.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function isValidUser(data) {
+      return data.keys().hasAll(['username', 'usernameKey', 'createdAt'])
+        && data.keys().hasOnly(['username', 'usernameKey', 'createdAt'])
+        && data.username is string && data.username.size() >= 3 && data.username.size() <= 20
+        && data.username.matches('^[a-zA-Z0-9_]{3,20}$')
+        && data.usernameKey is string && data.usernameKey.size() >= 3 && data.usernameKey.size() <= 20
+        && data.usernameKey == data.username.lower()
+        && data.createdAt is timestamp;
+    }
+    function isValidReservation(data) {
+      return data.keys().hasAll(['uid']) && data.keys().hasOnly(['uid'])
+        && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
+        && data.uid == request.auth.uid;
+    }
+    match /users/{uid} {
+      allow get: if isOwner(uid);
+      allow list: if false;
+      allow create: if isOwner(uid) && isValidUser(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.usernameKey)).data.uid == uid;
+      // No profile editing is exposed in this version. Deny update/delete explicitly.
+      allow update, delete: if false;
+    }
+    match /usernames/{key} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn() && key.matches('^[a-z0-9_]{3,20}$')
+        && isValidReservation(request.resource.data)
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.usernameKey == key;
+      allow update, delete: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

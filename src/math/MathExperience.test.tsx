@@ -23,6 +23,12 @@ describe('interface Calcul mental', () => {
     expect(html.match(/class="math-answer"/g)).toHaveLength(4);
     expect(html).not.toContain('math-hud');
   });
+  it.each([['small', 2, 11], ['large', 3, 15], ['finance', 4, 15]] as const)('annonce le bon bonus et le bon plafond dans le tutoriel du niveau %s', (level, bonus, capacity) => {
+    const html = renderToStaticMarkup(<MathTutorial level={level} onDone={() => {}} onExit={() => {}} reducedMotion={false} />);
+    expect(html).toContain(`+${bonus} s`);
+    expect(html).toContain(`${capacity} s max.`);
+    expect(html).toContain('−5 s');
+  });
   it('garde une partie minimale et démarre la barre à 10/11', () => {
     const html = renderToStaticMarkup(<MathPlay onFinish={() => {}} sound={false} reducedMotion={false} />);
     expect(html).toContain('scaleX(0.9090909090909091)');
@@ -31,6 +37,12 @@ describe('interface Calcul mental', () => {
     expect(html).not.toContain('Valider');
     expect(html).not.toContain('is-correct');
     expect(html).not.toContain('is-wrong');
+  });
+  it.each(['large', 'finance'] as const)('démarre le niveau %s à 10 secondes sur une barre de 15 secondes', level => {
+    const html = renderToStaticMarkup(<MathPlay level={level} onFinish={() => {}} sound={false} reducedMotion={false} />);
+    expect(html).toContain('scaleX(0.6666666666666666)');
+    expect(html).toContain('aria-valuemax="15"');
+    expect(html).toContain('aria-valuenow="10"');
   });
   it('révèle la bonne réponse après une erreur, avec quatre boutons bloqués', () => {
     const game = newMathGame(0);

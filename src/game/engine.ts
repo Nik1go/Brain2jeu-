@@ -5,9 +5,11 @@ export type Mirror = { row: number; col: number; slope: '/' | '\\' };
 export type Point = { x: number; y: number };
 export type Board = { size: number; mirrors: Mirror[]; entry: Port; exit: Port; path: Point[]; hits: number };
 export const LEVELS = [
-  [3,1], [3,2], [3,3], [4,3], [4,4], [4,5], [4,6], [5,6], [5,7],
+  [3,2], [3,3], [4,3], [4,4], [4,5], [4,6], [5,6], [5,7],
   [5,8], [5,9], [5,10], [6,10], [6,11], [6,12], [6,13], [6,14], [6,15],
 ].map(([size, mirrors]) => ({ size, mirrors }));
+export const MAX_LEVEL = LEVELS.length;
+export const PROGRESSION_VERSION = 2;
 export const OBSERVATION_MS = 3000;
 export const PATH_REPLAY_MS = 500;
 export const PATH_HOLD_MS = 450;
@@ -62,8 +64,8 @@ export function simulate(size: number, mirrors: Mirror[], entry: Port): { exit: 
   return { exit, path, hits };
 }
 export function generateBoard(level: number, random: () => number = Math.random): Board {
-  const { size, mirrors: count } = LEVELS[Math.max(0,Math.min(17,level-1))];
-  const targetHits = Math.min(count,1+Math.floor((level-1)/4));
+  const { size, mirrors: count } = LEVELS[Math.max(0,Math.min(MAX_LEVEL-1,level-1))];
+  const targetHits = Math.min(count,1+Math.floor(level/4));
   let best: Board | undefined;
   for (let attempt=0; attempt<600; attempt++) {
     const cells = Array.from({length:size*size},(_,i)=>i);
@@ -95,7 +97,7 @@ export type Session = {
   responseTotalMs: number; remainingMs: number; over: boolean;
 };
 export function newSession(mode: Mode, level=1): Session {
-  const start=mode==='survival'?1:Math.max(1,Math.min(18,level));
+  const start=mode==='survival'?1:Math.max(1,Math.min(MAX_LEVEL,level));
   return {mode,level:start,maxLevel:start,score:0,levelCorrect:0,consecutiveErrors:0,totalErrors:0,correct:0,answers:0,responseTotalMs:0,remainingMs:CHALLENGE_MS,over:false};
 }
 export function pointsFor(level: number, responseMs: number) {
@@ -108,7 +110,7 @@ export function recordAnswer(session: Session, correct: boolean, responseMs: num
   else { s.totalErrors++; s.consecutiveErrors++; }
   if (s.mode==='challenge') return s;
   if (s.totalErrors>=3) return {...s,over:true};
-  if (s.levelCorrect>=3) { s.level=Math.min(18,s.level+1); s.levelCorrect=0; }
+  if (s.levelCorrect>=3) { s.level=Math.min(MAX_LEVEL,s.level+1); s.levelCorrect=0; }
   else if (s.consecutiveErrors>=2) { s.level=Math.max(1,s.level-1); s.levelCorrect=0; s.consecutiveErrors=0; }
   s.maxLevel=Math.max(s.maxLevel,s.level);
   return s;
@@ -121,14 +123,14 @@ export function elapse(session: Session, deltaMs: number): Session {
 export type Game = {
   session: Session; board: Board; phase: 'observe'|'answer'|'feedback'|'over';
   phaseAt: number; lastAt: number; responseAt: number; selected: Port|null; wasCorrect: boolean;
-  pointsEarned: number; roundLevel: number;
+  pointsEarned: number; roundLevel: number; pausedAt: number|null;
 };
 export function newGame(mode: Mode,level: number,now: number): Game {
   const session=newSession(mode,level);
-  return {session,board:generateBoard(session.level),phase:'observe',phaseAt:now,lastAt:now,responseAt:0,selected:null,wasCorrect:false,pointsEarned:0,roundLevel:session.level};
+  return {session,board:generateBoard(session.level),phase:'observe',phaseAt:now,lastAt:now,responseAt:0,selected:null,wasCorrect:false,pointsEarned:0,roundLevel:session.level,pausedAt:null};
 }
 export function tickGame(game: Game, now: number): Game {
-  if (game.phase==='over') return game;
+  if (game.phase==='over'||game.pausedAt!==null) return game;
   if (game.phase==='feedback') {
     const correctionEnds=game.phaseAt+CORRECTION_MS;
     if(now<correctionEnds)return {...game,lastAt:now};
@@ -148,8 +150,18 @@ export function tickGame(game: Game, now: number): Game {
 }
 export function answerGame(game: Game, port: Port, now: number): Game {
   const g=tickGame(game,now);
-  if (g.phase!=='answer') return g;
+  if (g.phase!=='answer'||g.pausedAt!==null) return g;
   const wasCorrect=samePort(port,g.board.exit);
   const session=recordAnswer(g.session,wasCorrect,now-g.responseAt);
   return {...g,session,phase:'feedback',phaseAt:now,selected:port,wasCorrect,pointsEarned:session.score-g.session.score};
+}
+export function pauseGame(game: Game, now: number): Game {
+  if(game.pausedAt!==null||game.phase==='over')return game;
+  const g=tickGame(game,now);
+  return g.phase==='over'?g:{...g,pausedAt:now};
+}
+export function resumeGame(game: Game, now: number): Game {
+  if(game.pausedAt===null)return game;
+  const duration=Math.max(0,now-game.pausedAt);
+  return {...game,pausedAt:null,phaseAt:game.phaseAt+duration,responseAt:game.responseAt>0?game.responseAt+duration:0,lastAt:now};
 }

@@ -2,6 +2,15 @@
 
 Une application de mini-jeux cérébraux en français, responsive dès **360 px**, construite avec React, TypeScript et Vite. Trois jeux sont entièrement jouables : **Mémoire — Miroirs cachés**, **Organisation — Petit train** et **Rapidité — Calcul mental**. Fil à fil est présenté comme à venir.
 
+Le portail de compte propose e-mail / mot de passe avec pseudo, connexion Google
+avec choix du pseudo, récupération du mot de passe et déconnexion. Firebase Auth
+et Firestore sont intégrés au code. Le vrai projet `brain2jeu` dispose des
+fournisseurs e-mail et Google activés, d’une base Firestore Standard à Paris et
+des règles déployées. Le portail est publié sur
+[brain2jeu.leofinance.fr](https://brain2jeu.leofinance.fr/).
+Voir [la configuration et son état vérifié](deploy/FIREBASE.md). Les jeux restent
+accessibles sans compte et leurs scores restent locaux à l’appareil.
+
 ## Démarrage
 
 ```sh
@@ -25,13 +34,13 @@ Sa carte ouvre le choix de **trois niveaux, tous accessibles**, chacun avec son 
 - **2 · Grands calculs** : opérandes jusqu’à 999 et multiplications jusqu’à 50, avec **une seule opération par question**, à tous les paliers.
 - **3 · Finance** : parts en pourcentage, prix après hausse ou remise, puis deux variations successives à partir de 15 bonnes réponses. Les montants vont de 100 à 10 000 €. Le texte distingue le montant du pourcentage du prix final. Les réponses restent entières, sans arrondi.
 
-Quatre réponses neutres en grille 2 × 2, validation immédiate, sans défilement pendant la partie dès 360 px. Une réserve commune démarre à **10 s** sur une capacité de **11 s**. Bonne réponse : **+2 s et +100 points** ; erreur : **−5 s**, sans retrait de points. Le temps continue pendant les 200 ms de correction. À zéro, la partie se termine immédiatement, même entre deux calculs. Les doubles touchers et les réponses tardives sont refusés.
+Quatre réponses neutres en grille 2 × 2, validation immédiate, sans défilement pendant la partie dès 360 px. Une réserve commune démarre à **10 s** sur une capacité de **11 s au niveau 1 et 15 s aux niveaux 2 et 3**. Bonne réponse : **+2 s au niveau 1, +3 s au niveau 2, +4 s en Finance**, et **+100 points** dans chaque niveau ; erreur : **−5 s**, sans retrait de points. Le temps continue pendant les 200 ms de correction. À zéro, la partie se termine immédiatement, même entre deux calculs. Les doubles touchers et les réponses tardives sont refusés.
 
 Dans les deux niveaux arithmétiques, additions, soustractions et multiplications entières uniquement ; signes négatifs entre parenthèses, priorités respectées. Chaque niveau se complexifie toutes les cinq bonnes réponses cumulées, sans indicateur de progression pendant la partie. Les nombres restent bornés. Dans les trois niveaux, les quatre propositions forment un groupe de nombres proches : par exemple 48, 50, 52 et 55 pour un résultat de 50. L’écart total est limité à 6, 9, 15 ou 30 unités selon la taille du résultat. La bonne réponse peut être la plus petite, la plus grande ou l’une des deux valeurs centrales ; sa position à l’écran est aussi mélangée. En Finance, les propositions restent positives ou nulles. Les six dernières questions ne sont pas répétées.
 
 Le tutoriel propose un essai adapté au niveau choisi, sans chrono ni points, au premier départ et reste accessible dans **Profil → Tutoriel · Calcul mental** ou depuis le choix des niveaux. Le résultat présente score, record du niveau, bonnes réponses/réponses, précision et durée réelle. **Rejouer** conserve le niveau ; **Menu** revient à leur sélection. Une question sans réponse ne compte pas comme une erreur. Tutoriel, records séparés et 100 dernières parties sont sauvegardés sous `declic.calcul-mental.v1` et intégrés aux progrès globaux. Les anciens records et parties sont conservés dans Petits nombres.
 
-Les réglages sont regroupés dans `src/math/config.ts` (`MATH_RULES`, `MATH_LEVELS`, `MATH_DIFFICULTIES`, `LARGE_DIFFICULTIES`). `expressions.ts` génère et évalue les calculs sans `eval`, `choices.ts` construit les propositions proches, `distractors.ts` les applique aux calculs arithmétiques, `finance.ts` gère les pourcentages, `clock.ts` gère une échéance avec `performance.now()`, `scoring.ts` compte les réponses, `game.ts` coordonne les transitions, `storage.ts` persiste les résultats et `MathExperience.tsx` assure l’affichage. Le contrôle de l’échéance reste indépendant des animations, y compris après chaque bonus ou pénalité et au retour d’un onglet en arrière-plan. Les préférences de son et d’animations réduites du profil sont respectées.
+Les réglages sont regroupés dans `src/math/config.ts` (`MATH_RULES`, `MATH_LEVELS`, `MATH_DIFFICULTIES`, `LARGE_DIFFICULTIES`). `expressions.ts` génère et évalue les calculs sans `eval`, `choices.ts` construit les propositions proches, `distractors.ts` les applique aux calculs arithmétiques, `finance.ts` gère les pourcentages, `clock.ts` gère une échéance avec `performance.now()`, `scoring.ts` compte les réponses, `game.ts` coordonne les transitions, `storage.ts` persiste les résultats et `MathExperience.tsx` assure l’affichage. La barre est mise à jour directement à chaque image depuis la même échéance que le moteur, sans transition CSS retardée ni rendu complet du plateau à chaque image. Les doubles-taps sur le fond ne déclenchent pas de zoom. À expiration, les réponses sont bloquées immédiatement et la barre vide est affichée avant le résultat. Le contrôle de l’échéance reste indépendant des animations, y compris après chaque bonus ou pénalité et au retour d’un onglet en arrière-plan. Les préférences de son et d’animations réduites du profil sont respectées.
 
 Les tests vérifient notamment 7 000 questions Petits nombres, 3 500 Grands calculs et 7 000 Finance, l’opération unique en Grands calculs, les signes et priorités, les pourcentages successifs, les choix uniques et proches, la variation du rang et de la position de la bonne réponse, les bornes de difficulté, le plafond temporel, les pénalités fatales, l’expiration pendant une transition, les réponses tardives, le double comptage, le rejeu dans le même niveau, la précision, les records séparés et la migration des sauvegardes.
 
@@ -77,11 +86,11 @@ Les tests épuisent toutes les combinaisons d’aiguillages pour les huit niveau
 - **Défi** : 90 secondes, niveau fixe choisi parmi les niveaux débloqués en Survie. Le chronomètre affiche les secondes restantes. Le temps comprend observation et réponse, et est suspendu pendant les corrections.
 - **Observation** : 3 secondes, sans balle ; miroirs ensuite retirés du rendu. Un toucher sur une sortie répond immédiatement.
 - **Correction** : durée fixe de 1 600 ms pour les deux issues. La balle rejoue le trajet réel avec les miroirs pendant 500 ms ; le chemin complet reste visible 450 ms, puis un ✓ vert ou une croix rouge apparaît pendant 650 ms sous la grille, sans masquer le trajet. Les points gagnés apparaissent avec un « + points » animé au verdict.
-- **Difficulté** : 18 niveaux configurables, plateau limité à 6×6 ; nombre minimal de réflexions demandé croissant. Les positions de miroirs sont uniques et les parcours sont vérifiés avec détection de cycles.
+- **Difficulté** : 17 niveaux configurables, à partir de deux miroirs sur une grille 3×3, plateau limité à 6×6 ; nombre minimal de réflexions demandé croissant. Les positions de miroirs sont uniques et les parcours sont vérifiés avec détection de cycles.
 - **Score** : `100 + 25 × (niveau − 1) + max(0, 50 − 5 × floor(secondes de réponse))`.
 - **Records** : Survie séparée du Défi, et Défi séparé par niveau. Les anciens records Défi 120 s sont archivés séparément des nouveaux records 90 s. Le tutoriel ne produit aucun résultat.
-- **Données locales** : niveaux débloqués, tutoriel, préférences, records et 100 dernières parties. Pas de compte, de serveur de données ou d’analytics. Les statistiques et jours de jeu sont calculés sur cet historique. Aucune synchronisation entre appareils.
-- Le chronomètre ne propose pas de pause. Quitter abandonne la partie ; un onglet en arrière-plan ne met pas un Défi en pause.
+- **Données locales de jeu** : niveaux débloqués, tutoriel, préférences, records et 100 dernières parties. Les statistiques et jours de jeu sont calculés sur cet historique. Les comptes optionnels utilisent Firebase Auth et un profil Firestore privé ; aucune synchronisation des scores entre appareils n’est incluse.
+- Le bouton Pause suspend le chronomètre, le temps de réponse, l’observation et les animations. Reprendre continue la même manche ; Recommencer relance une nouvelle partie du même mode ; Quitter abandonne la partie. Sans pause manuelle, un onglet en arrière-plan ne met pas le Défi en pause.
 
 ## Architecture
 
@@ -139,3 +148,5 @@ npm run dev
 ```
 
 Pour les modifications suivantes : `git add`, `git commit`, puis `git push origin main`. Les dépendances, le build et les archives de déploiement sont exclus du dépôt.
+
+Les niveaux déjà débloqués sont décalés d’un cran avec la nouvelle progression. L’historique reste intact ; les anciens records sont conservés dans « Records des anciens niveaux » pour ne pas comparer les deux difficultés de départ. Le tutoriel guidé conserve un miroir pour expliquer la réflexion.

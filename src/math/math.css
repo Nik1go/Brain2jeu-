@@ -33,14 +33,14 @@
 .math-play[data-level=large] .math-problem h1.is-long{font-size:clamp(21px,5.8vw,33px)}
 .math-progress-records{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px}.math-progress-records>span{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#8d799c}.math-progress-records strong{font-size:14px;color:#795e93}
 .math-progress-panel{margin-top:24px}.math-progress-panel .text-link{margin-top:18px}
-.math-play{height:100dvh;width:100%;max-width:600px;margin:auto;padding:max(28px,env(safe-area-inset-top)) 24px max(28px,env(safe-area-inset-bottom));overflow:hidden;display:flex;flex-direction:column}
+.math-play{height:100dvh;width:100%;max-width:600px;margin:auto;padding:max(28px,env(safe-area-inset-top)) 24px max(28px,env(safe-area-inset-bottom));overflow:hidden;display:flex;flex-direction:column;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .math-hud{display:flex;justify-content:space-between;align-items:center;padding:8px 2px 22px;flex-shrink:0}
 .math-hud>span{font-size:11px;letter-spacing:2px;color:var(--math-muted);font-weight:700}
 .math-hud>strong{font-family:var(--heading);font-size:30px;font-weight:900;color:#6743b3;font-variant-numeric:tabular-nums}
 .math-time{height:10px;background:#e9e2f3;border-radius:20px;overflow:hidden;flex-shrink:0;box-shadow:0 0 0 0 transparent;transition:box-shadow .2s}
-.math-time>span{height:100%;width:100%;display:block;background:#9675d3;transform-origin:left center;border-radius:20px;transition:transform 80ms linear,background-color .12s;will-change:transform}
-.math-play.is-urgent .math-time{box-shadow:0 0 0 5px #c3847114;background:#f0dfd9}
-.math-play.is-urgent .math-time>span{background:#b66e59}
+.math-time>span{height:100%;width:100%;display:block;background:#9675d3;transform-origin:left center;border-radius:20px;transition:background-color .12s;will-change:transform}
+.math-time[data-urgent=true]{box-shadow:0 0 0 5px #c3847114;background:#f0dfd9}
+.math-time[data-urgent=true]>span{background:#b66e59}
 .math-play[data-feedback=correct] .math-time>span{background:#4e9674}
 .math-play[data-feedback=wrong] .math-time>span{background:#c36668}
 .math-problem{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:14px 0 20px;text-align:center}

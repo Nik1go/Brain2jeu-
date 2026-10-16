@@ -18,7 +18,7 @@ export function Board({board,showMirrors,showEntry,interactive,onSelect,correct,
       {showMirrors&&board.mirrors.map(m=>{
         const u=100/(size+2),x=(m.col+1.5)*u,y=(m.row+1.5)*u,d=u*.27;
         const path=`M${x-d} ${m.slope==='/'?y+d:y-d}L${x+d} ${m.slope==='/'?y-d:y+d}`;
-        return <g key={`${m.row}-${m.col}`} className="mirror"><path d={path} stroke="#8D66D1" strokeWidth="2.1" strokeLinecap="round"/><path d={path} stroke="#F1E9FF" strokeWidth="1.1" strokeLinecap="round"/></g>;
+        return <g key={`${m.row}-${m.col}`} className="mirror"><path d={path} stroke="#7548BF" strokeWidth="2.2" strokeLinecap="round"/><path d={path} stroke="#BC93EB" strokeWidth="1.1" strokeLinecap="round"/></g>;
       })}
       {pathVisible&&<polyline aria-label="Trajet réel de la balle" role="img" className={`correction-path ${replayProgress!==undefined?'replaying':''}`} points={board.path.map(point).join(' ')} fill="none" stroke="#9971C7" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" pathLength="1" style={replayProgress===undefined?undefined:{strokeDasharray:1,strokeDashoffset:1-replayProgress}}/>}
       {movingBall&&<circle className="replay-ball" cx={(movingBall.x+1)*100/(size+2)} cy={(movingBall.y+1)*100/(size+2)} r={size>4?2:2.7} fill="url(#game-ball)" stroke="#ED9C3E" strokeWidth=".3"/>}

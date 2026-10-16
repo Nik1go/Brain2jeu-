@@ -29,7 +29,7 @@ export function createQuestion(id: number, correct: number, recent: readonly str
 }
 export function newMathGame(now: number, random: Random = Math.random, level: MathLevelId = 'small'): MathGame {
   const question = createQuestion(0, 0, [], random, level);
-  return { ...emptyScore(), level, clock: createClock(now), question, recent: [question.signature], phase: 'question' };
+  return { ...emptyScore(), level, clock: createClock(now, level), question, recent: [question.signature], phase: 'question' };
 }
 export function expireMathGame(game: MathGame, now: number): MathGame {
   return game.phase !== 'over' && remainingMs(game.clock, now) === 0 ? { ...game, phase: 'over', endedAt: game.clock.deadline } : game;
@@ -45,6 +45,6 @@ export function answerMathGame(game: MathGame, questionId: number, value: number
   const current = expireMathGame(game, now);
   if (current.phase !== 'question' || current.question.id !== questionId || !current.question.choices.includes(value)) return current;
   const correct = value === current.question.answer;
-  const next: MathGame = { ...current, ...recordAnswer(current, correct), clock: adjustClock(current.clock, correct, now), phase: 'feedback', feedback: { selected: value, correct, until: now + MATH_RULES.feedbackMs } };
+  const next: MathGame = { ...current, ...recordAnswer(current, correct), clock: adjustClock(current.clock, correct, now, current.level), phase: 'feedback', feedback: { selected: value, correct, until: now + MATH_RULES.feedbackMs } };
   return expireMathGame(next, now);
 }

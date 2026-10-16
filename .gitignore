@@ -7,3 +7,21 @@ coverage/
 .openai/*.tar.gz
 .sites/
 artifacts/
+
+# Local configuration and server credentials (public repository)
+.env
+.env.*
+!.env.example
+.secrets/
+secrets/
+*service-account*.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+application_default_credentials.json
+*.pem
+*.key
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+*-debug.log

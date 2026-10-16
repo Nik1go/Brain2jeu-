@@ -77,9 +77,27 @@ describe('calculs et distracteurs', () => {
 });
 
 describe('réserve de temps et validation atomique', () => {
+  it.each([['small', 2000, 11000], ['large', 3000, 15000], ['finance', 4000, 15000]] as const)('applique le bonus du niveau %s, sans dépasser le plafond ni sauver une partie expirée', (level, bonus, capacity) => {
+    const clock = createClock(0, level);
+    expect(clock.capacityMs).toBe(capacity);
+    expect(remainingMs(adjustClock(clock, true, 6000, level), 6000)).toBe(4000 + bonus);
+    const earlyBonus = adjustClock(clock, true, 100, level);
+    expect(remainingMs(earlyBonus, 100)).toBe(Math.min(capacity, 9900 + bonus));
+    expect(remainingMs(adjustClock(earlyBonus, true, 100, level), 100)).toBe(Math.min(capacity, 9900 + bonus * 2));
+    expect(remainingMs(adjustClock({ ...clock, deadline: capacity }, true, 100, level), 100)).toBe(capacity);
+    expect(remainingMs(adjustClock(clock, false, 1000, level), 1000)).toBe(4000);
+    expect(remainingMs(adjustClock(clock, true, 10000, level), 10000)).toBe(0);
+    const game = newMathGame(0, seeded(18), level);
+    const answered = answerMathGame(game, 0, game.question.answer, 6000);
+    expect(remainingMs(answered.clock, 6000)).toBe(4000 + bonus);
+    expect(answered).toMatchObject({ score: 100, correct: 1, answers: 1 });
+    expect(answerMathGame(answered, 0, game.question.answer, 6100)).toBe(answered);
+    expect(remainingMs(advanceMathGame(answered, 6200).clock, 6200)).toBe(3800 + bonus);
+    expect(answerMathGame(game, 0, game.question.answer, 10000)).toMatchObject({ phase: 'over', answers: 0 });
+  });
   it('commence à 10/11, ajoute 2 s, plafonne à 11 et retire 5 s', () => {
     const clock = createClock(100);
-    expect(remainingMs(clock, 100) / MATH_RULES.capacityMs).toBe(10 / 11);
+    expect(remainingMs(clock, 100) / clock.capacityMs).toBe(10 / 11);
     expect(remainingMs(adjustClock(clock, true, 1100), 1100)).toBe(11000);
     expect(remainingMs(adjustClock(clock, true, 4100), 4100)).toBe(8000);
     expect(remainingMs(adjustClock(clock, false, 4100), 4100)).toBe(1000);

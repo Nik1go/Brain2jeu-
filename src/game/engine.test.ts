@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answerGame, CHALLENGE_MS, CORRECTION_MS, elapse, generateBoard, LEVELS, newGame, newSession, PATH_REPLAY_MS, pointsFor, positionOnPath, recordAnswer, reflect, simulate, tickGame } from './engine';
+import { answerGame, CHALLENGE_MS, CORRECTION_MS, elapse, generateBoard, LEVELS, MAX_LEVEL, newGame, newSession, PATH_REPLAY_MS, pauseGame, pointsFor, positionOnPath, recordAnswer, reflect, resumeGame, simulate, tickGame } from './engine';
 import type { Direction, Mirror, Port } from './engine';
 import { emptyProgress, finishSession, loadProgress, saveProgress, STORAGE_KEY } from '../platform/storage';
 
@@ -18,12 +18,18 @@ describe('réflexions et simulation',()=>{
    LEVELS.forEach((config,i)=>{for(let trial=0;trial<30;trial++){
      const b=generateBoard(i+1,random);expect(b.size).toBe(config.size);expect(b.mirrors).toHaveLength(config.mirrors);
      expect(new Set(b.mirrors.map(m=>`${m.row}:${m.col}`)).size).toBe(config.mirrors);
-     expect(b.hits).toBeGreaterThanOrEqual(Math.min(config.mirrors,1+Math.floor(i/4)));
+     expect(b.hits).toBeGreaterThanOrEqual(Math.min(config.mirrors,1+Math.floor((i+1)/4)));
      expect(simulate(b.size,b.mirrors,b.entry)?.exit).toEqual(b.exit);
    }});
  });
 });
 describe('survie',()=>{
+ it('démarre sur l’ancien niveau 2 et conserve 17 niveaux',()=>{
+   expect(LEVELS).toHaveLength(17);expect(LEVELS[0]).toEqual({size:3,mirrors:2});
+   expect(LEVELS[16]).toEqual({size:6,mirrors:15});
+   expect(newGame('survival',1,0).board.mirrors).toHaveLength(2);
+   expect(newSession('challenge',99).level).toBe(17);
+ });
  it('commence toujours au niveau 1',()=>expect(newSession('survival',12).level).toBe(1));
  it('monte après trois réussites non consécutives et remet le compteur à zéro',()=>{
    let s=newSession('survival');for(const correct of [true,false,true,true])s=recordAnswer(s,correct,1500);
@@ -48,13 +54,37 @@ describe('survie',()=>{
  });
  it('respecte les limites de niveau et fige une partie terminée',()=>{
    const low=recordAnswer(recordAnswer(newSession('survival'),false,0),false,0);expect(low.level).toBe(1);
-   const high=recordAnswer({...newSession('survival'),level:18,maxLevel:18,levelCorrect:2},true,0);expect(high.level).toBe(18);expect(high.levelCorrect).toBe(0);
+   const high=recordAnswer({...newSession('survival'),level:MAX_LEVEL,maxLevel:MAX_LEVEL,levelCorrect:2},true,0);expect(high.level).toBe(MAX_LEVEL);expect(high.levelCorrect).toBe(0);
    const end={...high,over:true};expect(recordAnswer(end,true,0)).toBe(end);
+ });
+});
+describe('pause des miroirs',()=>{
+ it('fige le chrono et les trois secondes d’observation sur le même plateau',()=>{
+   const game=newGame('challenge',1,0),paused=pauseGame(game,1000);
+   expect(paused.session.remainingMs).toBe(89000);expect(tickGame(paused,100000)).toBe(paused);
+   const resumed=resumeGame(paused,101000);
+   expect(resumed.board).toBe(game.board);expect(resumed.session.remainingMs).toBe(89000);
+   expect(tickGame(resumed,102999).phase).toBe('observe');expect(tickGame(resumed,103000).phase).toBe('answer');
+ });
+ it('exclut la pause du temps de réponse, du bonus et de la durée du Défi',()=>{
+   let g=tickGame(newGame('challenge',1,0),3000);g=pauseGame(g,3500);g=resumeGame(g,63500);g=answerGame(g,g.board.exit,64000);
+   expect(g.session.responseTotalMs).toBe(1000);expect(g.pointsEarned).toBe(145);expect(g.session.remainingMs).toBe(86000);
+ });
+ it('reprend la correction au même endroit sans compter le temps de pause',()=>{
+   let g=tickGame(newGame('survival',1,0),3000);g=answerGame(g,g.board.exit,3500);g=pauseGame(g,3700);
+   expect(tickGame(g,60000)).toBe(g);g=resumeGame(g,63700);
+   expect(g.lastAt-g.phaseAt).toBe(200);expect(tickGame(g,63500+CORRECTION_MS-1).phase).toBe('feedback');
+   expect(tickGame(g,63500+CORRECTION_MS).phase).toBe('observe');
+ });
+ it('refuse toute réponse pendant la pause et ne suspend pas une partie déjà expirée',()=>{
+   let g=tickGame(newGame('challenge',1,0),3000);g=pauseGame(g,3500);
+   expect(answerGame(g,g.board.exit,5000).session.answers).toBe(0);
+   const expired=pauseGame(newGame('challenge',1,0),CHALLENGE_MS);expect(expired.phase).toBe('over');expect(expired.pausedAt).toBe(null);
  });
 });
 describe('score et Défi',()=>{
  it('applique le bonus par secondes entières et le borne à zéro',()=>{
-   expect(pointsFor(1,0)).toBe(150);expect(pointsFor(2,1999)).toBe(170);expect(pointsFor(18,25000)).toBe(525);expect(pointsFor(1,10000)).toBe(100);
+   expect(pointsFor(1,0)).toBe(150);expect(pointsFor(2,1999)).toBe(170);expect(pointsFor(MAX_LEVEL,25000)).toBe(500);expect(pointsFor(1,10000)).toBe(100);
  });
  it('ne donne aucun point pour une erreur et garde le niveau Défi fixe',()=>{
    let s=newSession('challenge',7);for(let i=0;i<5;i++)s=recordAnswer(s,false,1000);expect(s.over).toBe(false);expect(s.level).toBe(7);expect(s.score).toBe(0);
@@ -117,7 +147,7 @@ describe('rejeu visuel et progression complète',()=>{
      expect(g.roundLevel).toBe(1);
      now+=500+CORRECTION_MS;g=tickGame(g,now);
    }
-   expect(g.session.level).toBe(2);expect(g.roundLevel).toBe(2);expect(g.board.mirrors).toHaveLength(2);
+   expect(g.session.level).toBe(2);expect(g.roundLevel).toBe(2);expect(g.board.mirrors).toHaveLength(3);
    expect(g.session.levelCorrect).toBe(0);expect(g.session.score).toBe(450);
    now+=3000;g=tickGame(g,now);g=answerGame(g,g.board.exit,now+500);
    expect(g.pointsEarned).toBe(175);
