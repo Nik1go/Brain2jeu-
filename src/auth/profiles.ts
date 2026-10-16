@@ -1,24 +1,14 @@
 import type { User } from 'firebase/auth';
 import { updateProfile } from 'firebase/auth';
-import { connectFirestoreEmulator, doc, getFirestore, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore';
-import type { Firestore, Timestamp } from 'firebase/firestore';
-import { firebaseApp, useEmulators } from './firebase';
+import { doc, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore';
+import type { Timestamp } from 'firebase/firestore';
+import { playerDatabase as db } from './database';
 import { usernameKey, validUsername } from './identity';
 
 export interface PlayerProfile {
   username: string;
   usernameKey: string;
   createdAt: Timestamp;
-}
-
-let database: Firestore | undefined;
-function db() {
-  if (!firebaseApp) throw { code: 'firebase/not-configured' };
-  if (!database) {
-    database = getFirestore(firebaseApp, import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)');
-    if (useEmulators) connectFirestoreEmulator(database, '127.0.0.1', 8080);
-  }
-  return database;
 }
 
 export function watchProfile(uid: string, next: (profile: PlayerProfile | null) => void, error: (cause: unknown) => void) {

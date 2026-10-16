@@ -136,6 +136,10 @@ npx cap open ios
 
 **Cette livraison prépare la migration ; elle ne contient pas de binaire signé et n’a pas été testée dans un simulateur natif.** Avant les stores : choisir l’identifiant définitif de l’app, générer les icônes/splash natifs, vérifier sur de vrais appareils, préparer les métadonnées et déclarations de confidentialité, puis signer avec les comptes développeur respectifs. Pour une persistance native plus robuste, l’adaptateur `storage.ts` peut être remplacé par Capacitor Preferences sans toucher au moteur.
 
+## Amis et profils publics
+
+« Mes amis », sous « Ton profil », permet de chercher un pseudo, gérer les invitations et consulter les meilleurs scores des trois jeux. Les profils publics ne contiennent aucun e-mail. Les nouvelles parties connectées publient leurs records ; les anciens records locaux se publient depuis le profil public. Données, tests et déploiement : [deploy/FRIENDS.md](deploy/FRIENDS.md).
+
 ## Dépôt GitHub
 
 Le dépôt source est [Nik1go/Brain2jeu-](https://github.com/Nik1go/Brain2jeu-), sur la branche `main`. Le distant `origin` est configuré sur cette URL.

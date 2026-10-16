@@ -71,7 +71,7 @@ export function AuthPortal() {
         </form>}
         {account.profileError && <button className="auth-secondary-link" onClick={account.retryProfile} disabled={busy}>Réessayer de charger mon profil</button>}
         {onboarding ? <button className="auth-secondary-link" disabled={busy} onClick={() => void run(account.logout)}>Se déconnecter</button> : mode === 'reset' ? <button className="auth-secondary-link" disabled={busy} onClick={() => switchMode('login')}><ArrowLeft size={15}/>Retour à la connexion</button> : <p className="auth-switch">{mode === 'login' ? 'Pas encore de compte ?' : 'Déjà dans l’aventure ?'} <button disabled={busy} onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}>{mode === 'login' ? 'Rejoins-nous' : 'Connecte-toi'}<ArrowRight size={13}/></button></p>}
-        <p className="auth-local-note"><ShieldCheck size={14}/> Ton profil est privé. Tes records restent sur cet appareil.</p>
+        <p className="auth-local-note"><ShieldCheck size={14}/> Ton pseudo et tes records sont publics entre joueurs. Ton e-mail reste privé.</p>
       </div>
       <footer className="auth-footer"><span>Un peu de jeu. Beaucoup d’esprit.</span><a href="mailto:la.lutz@outlook.fr">Besoin d’un coup de main ?</a></footer>
     </section>

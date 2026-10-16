@@ -2,7 +2,12 @@ rules_version = '2';
 // users/{uid}: username (3–20 ASCII letters/digits/_), usernameKey (lowercase),
 // createdAt (server timestamp). All fields immutable. Private to this uid.
 // usernames/{usernameKey}: uid (immutable, 1–128 chars). Exact authenticated
-// lookup only; no listing, email, passwords, or public profile directory.
+// lookup only. publicProfiles/{uid}: username, usernameKey (from users/{uid}),
+// records (exact six keys, null or integer 0..1e9, only increases), updatedAt.
+// Public game records are client-reported, not verified competitive rankings.
+// friendships/{length:a + a + length:b + b}: sorted members [a,b], from, to,
+// status (pending/accepted), createdAt, updatedAt. Participants are immutable.
+// All reads require Auth; friendship reads require membership.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
@@ -21,6 +26,36 @@ service cloud.firestore {
         && data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128
         && data.uid == request.auth.uid;
     }
+    function validScore(value) { return value == null || (value is int && value >= 0 && value <= 1000000000); }
+    function grows(old, next) { return old == null || (next != null && next >= old); }
+    function validRecords(r) {
+      return r is map && r.keys().hasAll(['mirrorSurvival', 'mirrorChallenge', 'train', 'mathSmall', 'mathLarge', 'mathFinance'])
+        && r.keys().hasOnly(['mirrorSurvival', 'mirrorChallenge', 'train', 'mathSmall', 'mathLarge', 'mathFinance'])
+        && validScore(r.mirrorSurvival) && validScore(r.mirrorChallenge) && validScore(r.train)
+        && validScore(r.mathSmall) && validScore(r.mathLarge) && validScore(r.mathFinance);
+    }
+    function validPublicProfile(data, uid) {
+      let player = get(/databases/$(database)/documents/users/$(uid)).data;
+      return data.keys().hasAll(['username', 'usernameKey', 'records', 'updatedAt'])
+        && data.keys().hasOnly(['username', 'usernameKey', 'records', 'updatedAt'])
+        && data.username == player.username && data.usernameKey == player.usernameKey
+        && validRecords(data.records) && data.updatedAt == request.time;
+    }
+    function recordsIncrease(a, b) {
+      return grows(a.mirrorSurvival, b.mirrorSurvival) && grows(a.mirrorChallenge, b.mirrorChallenge)
+        && grows(a.train, b.train) && grows(a.mathSmall, b.mathSmall)
+        && grows(a.mathLarge, b.mathLarge) && grows(a.mathFinance, b.mathFinance);
+    }
+    function validUid(uid) { return uid is string && uid.size() >= 1 && uid.size() <= 128 && !uid.matches('.*[/].*'); }
+    function validFriendship(data, id) {
+      let m = data.members;
+      return data.keys().hasAll(['members', 'from', 'to', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['members', 'from', 'to', 'status', 'createdAt', 'updatedAt'])
+        && m is list && m.size() == 2 && validUid(m[0]) && validUid(m[1]) && m[0] < m[1]
+        && id == string(m[0].size()) + ':' + m[0] + string(m[1].size()) + ':' + m[1]
+        && data.from in m && data.to in m && data.from != data.to
+        && data.status in ['pending', 'accepted'] && data.createdAt is timestamp && data.updatedAt == request.time;
+    }
     match /users/{uid} {
       allow get: if isOwner(uid);
       allow list: if false;
@@ -37,6 +72,29 @@ service cloud.firestore {
         && isValidReservation(request.resource.data)
         && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.usernameKey == key;
       allow update, delete: if false;
+    }
+    match /publicProfiles/{uid} {
+      allow get: if signedIn();
+      allow list: if signedIn() && request.query.limit <= 20;
+      allow create: if isOwner(uid) && validPublicProfile(request.resource.data, uid);
+      allow update: if isOwner(uid) && validPublicProfile(request.resource.data, uid)
+        && recordsIncrease(resource.data.records, request.resource.data.records);
+      allow delete: if false;
+    }
+    match /friendships/{id} {
+      // Transactions must be able to check a pair that does not yet exist.
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/friendships/$(id)) || request.auth.uid in resource.data.members);
+      allow list: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn() && validFriendship(request.resource.data, id)
+        && request.resource.data.from == request.auth.uid && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && exists(/databases/$(database)/documents/publicProfiles/$(request.resource.data.from))
+        && exists(/databases/$(database)/documents/publicProfiles/$(request.resource.data.to));
+      allow update: if signedIn() && validFriendship(request.resource.data, id)
+        && request.auth.uid == resource.data.to && resource.data.status == 'pending' && request.resource.data.status == 'accepted'
+        && request.resource.data.members == resource.data.members && request.resource.data.from == resource.data.from
+        && request.resource.data.to == resource.data.to && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if signedIn() && request.auth.uid in resource.data.members;
     }
     match /{document=**} {
       allow read, write: if false;

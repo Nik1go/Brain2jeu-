@@ -1,5 +1,7 @@
 # Firebase pour Brain2jeu
 
+L’extension « Mes amis » ajoute des profils publics séparés et des relations privées entre participants. Le fonctionnement et les règles actuelles sont décrits dans [FRIENDS.md](FRIENDS.md). Les mentions ci-dessous sur les records exclusivement locaux décrivent la première livraison de la connexion.
+
 Projet prévu : `brain2jeu`. Domaine du site : `brain2jeu.leofinance.fr`.
 Contact : `la.lutz@outlook.fr`.
 
