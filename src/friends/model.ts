@@ -45,7 +45,8 @@ export function friendError(cause: unknown): string {
   if (code === 'friends/incoming') return 'Ce joueur t’a déjà envoyé une demande. Tu peux l’accepter dans les demandes reçues.';
   if (code === 'friends/stale') return 'Cette demande a changé. La liste va se mettre à jour.';
   if (code === 'friends/unavailable') return 'Ce profil est indisponible pour le moment.';
-  if (code === 'permission-denied') return 'L’accès a été refusé. Réessaie après t’être reconnecté.';
+  if (code === 'permission-denied') return 'Le serveur refuse l’accès aux données partagées. Réessaie dans un instant.';
+  if (code === 'unauthenticated') return 'Ta session a expiré. Reconnecte-toi pour accéder aux données partagées.';
   if (code === 'unavailable' || code === 'deadline-exceeded') return 'Connexion indisponible. Vérifie ta connexion et réessaie.';
   return 'Impossible de terminer cette action. Réessaie dans un instant.';
 }

@@ -2,9 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { emptyProgress } from '../platform/storage';
 import { emptyTrainProgress } from '../train/storage';
 import { emptyMathProgress } from '../math/storage';
-import { emptyRecords, friendshipId, localRecords, mergeRecords, pairMembers } from './model';
+import { emptyRecords, friendError, friendshipId, localRecords, mergeRecords, pairMembers } from './model';
 
 describe('friend identity and public scores', () => {
+  it('distinguishes a server permission refusal from an expired session', () => {
+    expect(friendError({ code: 'permission-denied' })).toContain('Le serveur refuse');
+    expect(friendError({ code: 'permission-denied' })).not.toMatch(/reconnect|session/i);
+    expect(friendError({ code: 'unauthenticated' })).toContain('Ta session a expiré');
+  });
   it('uses one collision-free pair for both request directions, including custom UIDs', () => {
     expect(friendshipId('alice', 'bob')).toBe(friendshipId('bob', 'alice'));
     expect(pairMembers('bob', 'alice')).toEqual(['alice', 'bob']);

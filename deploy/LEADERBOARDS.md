@@ -31,7 +31,7 @@ Les scores restent déclarés par le client, comme les records publics existants
 
 ## Validation locale
 
-`npm test` : 210 tests, dont huit sur les classements (ex æquo, zéro/jamais joué, population, bornes exactes du top 1 %, séparation des niveaux, import et fusion).
+`npm test` : 211 tests, dont huit sur les classements (ex æquo, zéro/jamais joué, population, bornes exactes du top 1 %, séparation des niveaux, import et fusion) et une régression distinguant le refus d’accès serveur d’une session expirée.
 
 `scripts/test-firestore-rules.mjs` : **145 contrôles** avec les émulateurs Auth/Firestore, plus les assertions de pagination, comptages, concurrence et séparation des modes. Un import atomique des 29 classements vérifie aussi les limites d’accès des règles. Aucun compte réel n’est utilisé.
 
@@ -48,14 +48,19 @@ Le seed refuse toute destination distante. Il prépare AliceTest/BobTest amis, d
 
 ## Mise en ligne
 
-Les sources et le build sont préparés localement. La vérification distante du 16 octobre 2026 a échoué car la session Firebase CLI a expiré ; les nouvelles règles ne sont pas déployées. Les instructions antérieures de publication VPS restent applicables.
+Les règles des classements ont été publiées sur la base `(default)` de `brain2jeu` le **17 octobre 2026 à 01 h 26 (Paris)**. Le site servait déjà le nouveau front, mais la version active des règles (`594801ff-9fab-44af-a0d8-a5051f391d05`) ne contenait ni les chemins `leaderboards`, ni `trainProgress`. Cela provoquait les refus d’accès même avec une session valide. La reconnexion du joueur ne pouvait pas résoudre ce décalage.
 
-Après reconnexion Firebase, publier **les règles avant le front**, puis installer l’archive VPS :
+La compilation distante `--dry-run` a réussi, puis le déploiement a activé la version **`9101d9f5-6829-48cc-b011-bbdbeaaeab0b`**. Une relecture indépendante a confirmé sa correspondance SHA-256 exacte avec les règles testées : `7c718474263b0eebd8411ed184e89a58c50797e9a56b320493a5045918fc0e85`. Les anciennes règles sont sauvegardées dans `artifacts/firestore-rules-before-leaderboards.rules` ; les rapports avant/après restent locaux. Aucun compte personnel ni score réel n’a été créé ou modifié pour cette vérification.
+
+Une page qui conserve l’erreur doit être actualisée, car un abonnement Firestore refusé est interrompu. Il n’est pas nécessaire de se déconnecter. Le correctif d’interface distingue désormais les refus serveur des sessions expirées et réserve la bannière de publication à la page Profil ; les autres erreurs restent visibles dans la fonctionnalité concernée. Cette amélioration d’affichage doit être récupérée lors de la prochaine installation du front sur le VPS.
+
+Pour une prochaine livraison, publier **les règles avant le front**, vérifier leur version active, puis installer l’archive VPS :
 
 ```powershell
 npx firebase login --reauth
 npx firebase deploy --only firestore:rules --project brain2jeu
+npm run firebase:check-rules
 npm run release:vps
 ```
 
-Ne pas publier uniquement le front contre les anciennes règles : les nouveaux chemins seraient refusés. La diffusion en production et la vérification mobile réelle restent à effectuer.
+`firebase:check-rules` est en lecture seule, n’affiche aucun jeton et retourne un échec si la version active diffère du fichier local. Ne pas publier uniquement le front contre des règles anciennes : les nouveaux chemins seraient refusés. La vérification du compte personnel et sur téléphone reste à effectuer par son propriétaire.

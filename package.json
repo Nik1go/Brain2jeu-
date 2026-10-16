@@ -10,6 +10,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
     "firebase:setup": "node scripts/firebase-config.mjs",
+    "firebase:check-rules": "node scripts/check-firestore-rules.mjs",
     "firebase:emulators": "npx -y firebase-tools@latest emulators:start --only auth,firestore --project demo-brain2jeu",
     "test:firebase": "npx -y firebase-tools@latest emulators:exec --only auth,firestore --project demo-brain2jeu \"node scripts/test-firestore-rules.mjs\"",
     "native:sync": "npm run build && cap sync",
