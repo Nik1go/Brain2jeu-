@@ -4,6 +4,8 @@ rules_version = '2';
 // usernames/{usernameKey}: uid (immutable, 1–128 chars). Exact authenticated
 // lookup only. publicProfiles/{uid}: username, usernameKey (from users/{uid}),
 // records (exact six keys, null or integer 0..1e9, only increases), updatedAt.
+// Optional trainProgress: unlocked 1..8, completed 0..8; monotonic.
+// leaderboards/{versionedBoard}/entries/{uid}: username, score, updatedAt.
 // Public game records are client-reported, not verified competitive rankings.
 // friendships/{length:a + a + length:b + b}: sorted members [a,b], from, to,
 // status (pending/accepted), createdAt, updatedAt. Participants are immutable.
@@ -37,9 +39,33 @@ service cloud.firestore {
     function validPublicProfile(data, uid) {
       let player = get(/databases/$(database)/documents/users/$(uid)).data;
       return data.keys().hasAll(['username', 'usernameKey', 'records', 'updatedAt'])
-        && data.keys().hasOnly(['username', 'usernameKey', 'records', 'updatedAt'])
+        && data.keys().hasOnly(['username', 'usernameKey', 'records', 'updatedAt', 'trainProgress'])
         && data.username == player.username && data.usernameKey == player.usernameKey
-        && validRecords(data.records) && data.updatedAt == request.time;
+        && validRecords(data.records) && data.updatedAt == request.time
+        && (!('trainProgress' in data) || validTrainProgress(data.trainProgress));
+    }
+    function validTrainProgress(p) {
+      return p is map && p.keys().hasAll(['unlocked', 'completed']) && p.keys().hasOnly(['unlocked', 'completed'])
+        && p.unlocked is int && p.unlocked >= 1 && p.unlocked <= 8
+        && p.completed is int && p.completed >= 0 && p.completed <= p.unlocked
+        && (p.completed < p.unlocked || p.completed == 8);
+    }
+    function trainProgressIncreases(a, b) {
+      return !('trainProgress' in a) || ('trainProgress' in b
+        && b.trainProgress.unlocked >= a.trainProgress.unlocked
+        && b.trainProgress.completed >= a.trainProgress.completed);
+    }
+    function validBoard(board) {
+      return board in ['math-small-v1', 'math-large-v1', 'math-finance-v1', 'mirror-survival-v2']
+        || board.matches('^mirror-challenge-v2-l([1-9]|1[0-7])$')
+        || board.matches('^train-v1-l[1-8]$');
+    }
+    function validEntry(data, uid) {
+      return data.keys().hasAll(['username', 'score', 'updatedAt']) && data.keys().hasOnly(['username', 'score', 'updatedAt'])
+        && data.username == get(/databases/$(database)/documents/users/$(uid)).data.username
+        && data.score is int && data.score >= 0 && data.score <= 1000000000
+        && data.updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/publicProfiles/$(uid));
     }
     function recordsIncrease(a, b) {
       return grows(a.mirrorSurvival, b.mirrorSurvival) && grows(a.mirrorChallenge, b.mirrorChallenge)
@@ -78,7 +104,16 @@ service cloud.firestore {
       allow list: if signedIn() && request.query.limit <= 20;
       allow create: if isOwner(uid) && validPublicProfile(request.resource.data, uid);
       allow update: if isOwner(uid) && validPublicProfile(request.resource.data, uid)
-        && recordsIncrease(resource.data.records, request.resource.data.records);
+        && recordsIncrease(resource.data.records, request.resource.data.records)
+        && trainProgressIncreases(resource.data, request.resource.data);
+      allow delete: if false;
+    }
+    match /leaderboards/{board}/entries/{uid} {
+      // Aggregations use the same read rule as queries. Only pseudonym and score are exposed.
+      allow read: if signedIn() && validBoard(board);
+      allow create: if isOwner(uid) && validBoard(board) && validEntry(request.resource.data, uid);
+      allow update: if isOwner(uid) && validBoard(board) && validEntry(request.resource.data, uid)
+        && request.resource.data.score >= resource.data.score;
       allow delete: if false;
     }
     match /friendships/{id} {

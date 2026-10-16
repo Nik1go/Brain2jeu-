@@ -2,6 +2,7 @@ import type { Timestamp } from 'firebase/firestore';
 import type { Progress } from '../platform/storage';
 import type { TrainProgress } from '../train/storage';
 import type { MathProgress } from '../math/storage';
+import type { SharedTrainProgress } from '../leaderboards/model';
 
 export const RECORD_LABELS = {
   mirrorSurvival: 'Miroirs cachés · Survie', mirrorChallenge: 'Miroirs cachés · Défi',
@@ -10,7 +11,7 @@ export const RECORD_LABELS = {
 } as const;
 export type RecordKey = keyof typeof RECORD_LABELS;
 export type PublicRecords = Record<RecordKey, number | null>;
-export interface PublicProfile { uid: string; username: string; usernameKey: string; records: PublicRecords; updatedAt: Timestamp | null }
+export interface PublicProfile { uid: string; username: string; usernameKey: string; records: PublicRecords; trainProgress?: SharedTrainProgress; updatedAt: Timestamp | null }
 export interface Friendship { id: string; members: [string, string]; from: string; to: string; status: 'pending' | 'accepted'; createdAt: Timestamp; updatedAt: Timestamp }
 export const emptyRecords = (): PublicRecords => ({ mirrorSurvival: null, mirrorChallenge: null, train: null, mathSmall: null, mathLarge: null, mathFinance: null });
 export const mathRecordKey = (level: 'small' | 'large' | 'finance'): RecordKey => ({ small: 'mathSmall', large: 'mathLarge', finance: 'mathFinance' })[level] as RecordKey;

@@ -13,6 +13,8 @@ accessibles sans compte et leurs scores restent locaux à l’appareil.
 
 ## Démarrage
 
+Les **classements globaux et entre amis** sont accessibles depuis la navigation et les résultats : records par mode/niveau, percentile, rang mondial dans le top 1 % et parcours Petit train des amis. Voir [le fonctionnement, les tests et la mise en ligne](deploy/LEADERBOARDS.md).
+
 ```sh
 npm install
 npm run dev

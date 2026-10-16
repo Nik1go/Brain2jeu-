@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, Check, ChevronRight, Clock3, HelpCircle, RotateCcw, Target, Trophy, X, Zap } from 'lucide-react';
 import { afterTimeBarPaint, paintMathTime } from './timeBar';
 import { mathLevel, MATH_LEVELS, MATH_RULES } from './config';
@@ -14,9 +15,11 @@ import type { MathProgress, MathResult } from './storage';
 import './math.css';
 
 const format = (n: number) => n.toLocaleString('fr-FR');
-export function MathExperience({ progress, onProgress, onExit, onTutorialExit, sound, reducedMotion, initialTutorial = false }: {
+export function MathExperience({ progress, onProgress, onExit, onTutorialExit, sound, reducedMotion, initialTutorial = false, renderComparison, onLeaderboard, onGameStart }: {
   progress: MathProgress; onProgress: (p: MathProgress) => void; onExit: () => void;
   onTutorialExit?: () => void; sound: boolean; reducedMotion: boolean; initialTutorial?: boolean;
+  renderComparison?: (result: MathResult) => ReactNode; onLeaderboard?: () => void;
+  onGameStart?: () => void;
 }) {
   const [screen, setScreen] = useState<'levels' | 'tutorial' | 'game' | 'result'>(initialTutorial ? 'tutorial' : 'levels');
   const [level, setLevel] = useState<MathLevelId>('small');
@@ -34,7 +37,7 @@ export function MathExperience({ progress, onProgress, onExit, onTutorialExit, s
     setScreen('result');
   }, [progress, save]);
   useEffect(() => { window.scrollTo(0, 0); }, [screen]);
-  const start = (chosen: MathLevelId) => { setLevel(chosen); setGameKey(k => k + 1); setScreen(progress.tutorialDone ? 'game' : 'tutorial'); };
+  const start = (chosen: MathLevelId) => { setLevel(chosen); setGameKey(k => k + 1); if (progress.tutorialDone) onGameStart?.(); setScreen(progress.tutorialDone ? 'game' : 'tutorial'); };
   if (screen === 'levels') return <main className={`math-hub ${reducedMotion ? 'reduce-motion' : ''}`}>
     <header><button className="math-back" onClick={onExit}><ArrowLeft size={18} />Tous les jeux</button><span className="math-wordmark"><Zap size={18} />calcul mental<span>.</span></span></header>
     <section className="math-hub-intro"><span className="math-eyebrow">À CHAQUE ENVIE, SON DÉCLIC</span><h1>Trois façons de<br />faire le calcul<span>.</span></h1><p>Petits chiffres, grands défis ou esprit finance.<br />Choisis ton terrain de jeu.</p><div className="math-hub-rules"><span><Clock3 size={14} />10 s au départ</span><span>+2 à +4 s / −5 s</span><span>11 à 15 s max.</span></div></section>
@@ -42,11 +45,13 @@ export function MathExperience({ progress, onProgress, onExit, onTutorialExit, s
     <section className="math-levels" aria-label="Choisir un niveau">{MATH_LEVELS.map(config => <button key={config.id} className={`math-level-card level-${config.id}`} onClick={() => start(config.id)} aria-label={`Niveau ${config.number} · ${config.title}`}>
       <span className="math-level-number">0{config.number}</span><span className="math-level-copy"><small>NIVEAU {config.number}</small><strong>{config.title}</strong><span>{config.description}</span><em>{config.example}</em><span className="math-level-detail">{config.detail}</span><span>Bonne réponse : +{config.bonusMs / 1000} s · {config.capacityMs / 1000} s max.</span><span className="math-level-best"><Trophy size={13} />Record : {format(progress.bestByLevel[config.id])} pts</span></span><ChevronRight size={20} />
     </button>)}</section>
+    {onLeaderboard && <button className="game-ranking-link" onClick={onLeaderboard}><Trophy size={16}/>Voir les classements <ArrowRight size={16}/></button>}
     <button className="math-tutorial-link" onClick={() => setScreen('tutorial')}><HelpCircle size={16} />{progress.tutorialDone ? 'Revoir le tutoriel' : 'Découvrir les règles'}</button>
   </main>;
   if (screen === 'game') return <MathPlay key={gameKey} level={level} onFinish={finish} sound={sound} reducedMotion={reducedMotion} />;
   if (screen === 'tutorial') return <MathTutorial level={level} reducedMotion={reducedMotion} onExit={initialTutorial ? onTutorialExit ?? onExit : () => setScreen('levels')} onDone={() => {
     save({ ...progress, tutorialDone: true });
+    onGameStart?.();
     setScreen('game');
   }} />;
   return <main className={`math-summary ${reducedMotion ? 'reduce-motion' : ''}`}>
@@ -59,12 +64,13 @@ export function MathExperience({ progress, onProgress, onExit, onTutorialExit, s
       <p>Un petit calcul. Un nouveau déclic.</p>
       <div className="math-final-score">{format(completed.result.score)}<span>POINTS</span></div>
       <div className={`math-record ${completed.newRecord ? 'is-new' : ''}`}><Trophy size={16} />{completed.newRecord ? 'Nouveau record' : 'Record du niveau'}<strong>{format(progress.bestByLevel[completed.result.level])} pts</strong></div>
+      {renderComparison?.(completed.result)}
       <div className="math-result-stats">
         <div><Check size={20} /><strong>{completed.result.correct} / {completed.result.answers}</strong><span>Bonnes réponses / réponses</span></div>
         <div><Target size={20} /><strong>{accuracy(completed.result)} %</strong><span>Précision</span></div>
         <div><Clock3 size={20} /><strong>{(completed.result.durationMs / 1000).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s</strong><span>Durée de la partie</span></div>
       </div>
-      <button className="math-primary" onClick={() => { setGameKey(k => k + 1); setScreen('game'); }}><RotateCcw size={18} />Rejouer</button>
+      <button className="math-primary" onClick={() => { onGameStart?.(); setGameKey(k => k + 1); setScreen('game'); }}><RotateCcw size={18} />Rejouer</button>
       <button className="math-menu" onClick={() => setScreen('levels')}>Menu <ArrowRight size={16} /></button>
     </section>}
   </main>;

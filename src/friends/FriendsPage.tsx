@@ -3,14 +3,15 @@ import { ArrowRight, Check, ChevronLeft, Clock3, Gamepad2, Search, ShieldCheck, 
 import { useAuth } from '../auth/AuthProvider';
 import { friendError, RECORD_LABELS } from './model';
 import type { Friendship, PublicProfile, PublicRecords, RecordKey } from './model';
-import { acceptFriend, readPublicProfile, removeFriend, requestFriend, searchPlayers, watchFriendships, watchPublicProfile } from './service';
+import { acceptFriend, removeFriend, requestFriend, searchPlayers, watchFriendships, watchPublicProfile } from './service';
 import './friends.css';
 
-interface Props { records: PublicRecords; ready: boolean; syncError: string; onSync: (records?: Partial<PublicRecords>) => Promise<void> }
+interface Props { records: PublicRecords; ready: boolean; syncError: string; onSync: (records?: Partial<PublicRecords>) => Promise<void>; onLeaderboard?: () => void }
 export function FriendsPage(props: Props) {
   const account = useAuth();
   return <section className="friends-page">
     <header className="friends-heading"><div><div className="eyebrow">LES DÉCLICS, ÇA SE PARTAGE</div><h1>Mes amis<span>.</span></h1><p>Retrouve tes amis. Découvre leurs meilleurs scores.</p></div><div className="friends-emblem" aria-hidden="true"><UsersRound size={43} strokeWidth={1.4}/><Sparkles size={19}/><span/></div></header>
+    {props.onLeaderboard && <button className="friends-ranking-link" onClick={props.onLeaderboard}><Trophy size={17}/>Classements et parcours de mes amis <ArrowRight size={16}/></button>}
     {!account.user || !account.profile ? <div className="friends-gate panel"><span className="friend-round"><UserPlus size={29}/></span><h2>Un pseudo, et on se retrouve.</h2><p>Connecte-toi pour chercher des joueurs, envoyer des demandes et découvrir leurs records.</p><button className="primary" onClick={account.openPortal}>Me connecter <ArrowRight size={17}/></button></div> : <ConnectedFriends key={account.user.uid} uid={account.user.uid} username={account.profile.username} {...props}/>}
   </section>;
 }
@@ -56,13 +57,11 @@ function ConnectedFriends({ uid, username, records, ready, syncError, onSync }: 
     return watchFriendships(uid, items => { setRelationships(items); setLoading(false); }, cause => { setListError(friendError(cause)); setLoading(false); });
   }, [uid, version]);
   useEffect(() => {
-    let active = true;
     const ids = relationships.map(r => r.members.find(member => member !== uid)!);
     setPeopleError('');
-    void Promise.all(ids.map(async id => [id, await readPublicProfile(id)] as const)).then(entries => {
-      if (active) setPeople(Object.fromEntries(entries));
-    }).catch(cause => { if (active) setPeopleError(friendError(cause)); });
-    return () => { active = false; };
+    setPeople({});
+    const stops = ids.map(id => watchPublicProfile(id, person => setPeople(old => ({ ...old, [id]: person })), cause => setPeopleError(friendError(cause))));
+    return () => stops.forEach(stop => stop());
   }, [relationships, uid, version]);
   useEffect(() => {
     let active = true;
@@ -132,6 +131,7 @@ function ConnectedFriends({ uid, username, records, ready, syncError, onSync }: 
       {profileError ? <div className="friend-error" role="alert">{profileError}<button onClick={retry}>Réessayer</button></div> : profileLoading || (!profile && selected === uid && !ready && !syncError) ? <p className="friend-empty" role="status">Chargement du profil…</p> : !profile ? <div className="friend-empty"><h2>Profil indisponible</h2><p>Ce joueur n’a pas encore publié son profil.</p><button className="text-link" onClick={retry}>Réessayer</button></div> : <>
         <div className="friend-public-heading"><span className="friend-public-tag">{selected === uid ? 'TON PROFIL PUBLIC' : 'PROFIL DU JOUEUR'}</span><Avatar name={profile.username} large/><h2>{profile.username}</h2><p>{selected === uid ? 'C’est toi, esprit curieux.' : 'Un esprit curieux de plus.'}</p><div className="friend-profile-actions">{actions(selected)}</div></div>
         <div className="friend-record-heading"><Trophy size={16}/><h3>Meilleurs scores</h3></div><div className="friend-score-list">{(Object.entries(RECORD_LABELS) as [RecordKey, string][]).map(([key, label]) => <div className="friend-score" key={key}><span>{label}</span><strong>{profile.records[key] === null ? <span className="friend-unplayed">Pas encore joué</span> : <>{profile.records[key]!.toLocaleString('fr-FR')}<small> pts</small></>}</strong></div>)}</div>
+        <div className="friend-train-progress"><h3>Petit train · Parcours</h3><p>{profile.trainProgress ? profile.trainProgress.completed === 8 ? 'Parcours terminé · 8 niveaux réussis' : `Niveau ${profile.trainProgress.unlocked} atteint · ${profile.trainProgress.completed} / 8 niveaux réussis` : 'Progression pas encore partagée'}</p></div>
         {selected === uid && <div className="friend-import"><p>Déjà joué sur cet appareil ? Ajoute tes anciens records à ceux de <strong>{username}</strong>.</p><button className="secondary" disabled={importing || !hasLocalRecords || !ready} onClick={async () => { setImporting(true); setNotice(''); try { await onSync(records); setNotice('Les records de cet appareil sont publiés.'); } catch { /* The sync error is displayed above. */ } finally { setImporting(false); } }}>{importing ? 'Publication…' : 'Publier mes records de cet appareil'}</button></div>}
         {profile.updatedAt && <p className="friend-updated">Mis à jour le {profile.updatedAt.toDate().toLocaleDateString('fr-FR')}</p>}
       </>}

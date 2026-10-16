@@ -4,15 +4,34 @@ import { usernameKey } from '../auth/identity';
 import type { PlayerProfile } from '../auth/profiles';
 import { emptyRecords, friendshipId, mergeRecords, pairMembers } from './model';
 import type { Friendship, PublicProfile, PublicRecords } from './model';
+import { mergeCompetition } from '../leaderboards/model';
+import type { CompetitionUpdate } from '../leaderboards/model';
 
-export async function publishRecords(uid: string, profile: Pick<PlayerProfile, 'username' | 'usernameKey'>, incoming: Partial<PublicRecords> = {}): Promise<void> {
+export async function publishRecords(uid: string, profile: Pick<PlayerProfile, 'username' | 'usernameKey'>, incoming: Partial<PublicRecords> = {}, competition: CompetitionUpdate = {}): Promise<void> {
   const store = playerDatabase(), ref = doc(store, 'publicProfiles', uid);
+  const sanitized = mergeCompetition({}, competition);
   await runTransaction(store, async tx => {
     const previous = await tx.get(ref);
     const current = previous.exists() ? previous.data().records as PublicRecords : emptyRecords();
     const records = mergeRecords(current, incoming);
-    if (previous.exists() && JSON.stringify(records) === JSON.stringify(current)) return;
-    tx.set(ref, { username: profile.username, usernameKey: profile.usernameKey, records, updatedAt: serverTimestamp() });
+    // Existing account-owned records with an unambiguous mode can join the new boards.
+    // The old aggregated Challenge and Train records cannot identify their level.
+    const knownScores = Object.fromEntries(([
+      ['mirror-survival-v2', records.mirrorSurvival], ['math-small-v1', records.mathSmall],
+      ['math-large-v1', records.mathLarge], ['math-finance-v1', records.mathFinance],
+    ] as const).flatMap(([board, score]) => score === null ? [] : [[board, score]]));
+    const updates = Object.entries(mergeCompetition({ scores: knownScores }, sanitized).scores ?? {});
+    // Read all documents before writing. A transaction merges simultaneous records from other devices.
+    const entries = await Promise.all(updates.map(([board]) => tx.get(doc(store, 'leaderboards', board, 'entries', uid))));
+    const oldProgress = previous.data()?.trainProgress;
+    const trainProgress = mergeCompetition({ trainProgress: oldProgress }, sanitized).trainProgress;
+    const improved = updates.some(([, score], i) => !entries[i].exists() || score > entries[i].data()!.score);
+    if (!previous.exists() || improved || JSON.stringify(records) !== JSON.stringify(current) || JSON.stringify(trainProgress) !== JSON.stringify(oldProgress)) {
+      tx.set(ref, { username: profile.username, usernameKey: profile.usernameKey, records, ...(trainProgress ? { trainProgress } : {}), updatedAt: serverTimestamp() });
+    }
+    updates.forEach(([board, score], i) => {
+      if (!entries[i].exists() || score > entries[i].data()!.score) tx.set(doc(store, 'leaderboards', board, 'entries', uid), { username: profile.username, score, updatedAt: serverTimestamp() });
+    });
   });
 }
 export async function searchPlayers(value: string): Promise<PublicProfile[]> {
