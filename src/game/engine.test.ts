@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { answerGame, CHALLENGE_MS, CORRECTION_MS, elapse, generateBoard, LEVELS, MAX_LEVEL, newGame, newSession, PATH_REPLAY_MS, pauseGame, pointsFor, positionOnPath, recordAnswer, reflect, resumeGame, simulate, tickGame } from './engine';
 import type { Direction, Mirror, Port } from './engine';
 import { emptyProgress, finishSession, loadProgress, saveProgress, STORAGE_KEY } from '../platform/storage';
+import { BOUNCE_PROFILES } from './bounces';
 
 describe('réflexions et simulation',()=>{
  it.each([
@@ -13,12 +14,13 @@ describe('réflexions et simulation',()=>{
    expect(result?.exit).toEqual({side:'bottom',index:2});expect(result?.hits).toBe(3);
  });
  it('ne modifie pas un trajet sans miroir',()=>expect(simulate(3,[],{side:'top',index:2})?.exit).toEqual({side:'bottom',index:2}));
- it('génère des plateaux valides et des parcours plus longs aux niveaux avancés',()=>{
+ it('génère des plateaux valides dans les bornes de rebonds de chaque niveau',()=>{
    let seed=123456;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
    LEVELS.forEach((config,i)=>{for(let trial=0;trial<30;trial++){
      const b=generateBoard(i+1,random);expect(b.size).toBe(config.size);expect(b.mirrors).toHaveLength(config.mirrors);
      expect(new Set(b.mirrors.map(m=>`${m.row}:${m.col}`)).size).toBe(config.mirrors);
-     expect(b.hits).toBeGreaterThanOrEqual(Math.min(config.mirrors,1+Math.floor((i+1)/4)));
+     expect(b.hits).toBeGreaterThanOrEqual(BOUNCE_PROFILES[i].min);
+     expect(b.hits).toBeLessThanOrEqual(BOUNCE_PROFILES[i].max);
      expect(simulate(b.size,b.mirrors,b.entry)?.exit).toEqual(b.exit);
    }});
  });

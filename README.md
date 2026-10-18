@@ -88,7 +88,7 @@ Les tests épuisent toutes les combinaisons d’aiguillages pour les huit niveau
 - **Défi** : 90 secondes, niveau fixe choisi parmi les niveaux débloqués en Survie. Le chronomètre affiche les secondes restantes. Le temps comprend observation et réponse, et est suspendu pendant les corrections.
 - **Observation** : 3 secondes, sans balle ; miroirs ensuite retirés du rendu. Un toucher sur une sortie répond immédiatement.
 - **Correction** : durée fixe de 1 600 ms pour les deux issues. La balle rejoue le trajet réel avec les miroirs pendant 500 ms ; le chemin complet reste visible 450 ms, puis un ✓ vert ou une croix rouge apparaît pendant 650 ms sous la grille, sans masquer le trajet. Les points gagnés apparaissent avec un « + points » animé au verdict.
-- **Difficulté** : 17 niveaux configurables, à partir de deux miroirs sur une grille 3×3, plateau limité à 6×6 ; nombre minimal de réflexions demandé croissant. Les positions de miroirs sont uniques et les parcours sont vérifiés avec détection de cycles.
+- **Difficulté** : 17 niveaux configurables, à partir de deux miroirs sur une grille 3×3, plateau limité à 6×6. Le nombre de rebonds est tiré selon une loi gaussienne discrète bornée, dont la moyenne augmente à chaque niveau. Le niveau 5 vise environ 2 rebonds (1–3 autorisés), le niveau 8 en vise 3 (2–4 autorisés). À partir du niveau 8, la moyenne augmente de **0,5 rebond par niveau** : 3,5 au niveau 9, 4 au niveau 10, jusqu’à 7,5 au niveau 17. Des bornes symétriques conservent exactement ces moyennes dans la distribution théorique. Chaque plateau a un nombre entier de rebonds. Le générateur respecte le nombre exact tiré, sans retenir un parcours plus long. Les positions de miroirs sont uniques et les parcours sont vérifiés avec détection de cycles.
 - **Score** : `100 + 25 × (niveau − 1) + max(0, 50 − 5 × floor(secondes de réponse))`.
 - **Records** : Survie séparée du Défi, et Défi séparé par niveau. Les anciens records Défi 120 s sont archivés séparément des nouveaux records 90 s. Le tutoriel ne produit aucun résultat.
 - **Données locales de jeu** : niveaux débloqués, tutoriel, préférences, records et 100 dernières parties. Les statistiques et jours de jeu sont calculés sur cet historique. Les comptes optionnels utilisent Firebase Auth et un profil Firestore privé ; aucune synchronisation des scores entre appareils n’est incluse.
@@ -98,6 +98,8 @@ Les tests épuisent toutes les combinaisons d’aiguillages pour les huit niveau
 
 ```text
 src/game/engine.ts       Simulation, génération, score, progression et horloge purs
+src/game/bounces.ts      Profils de rebonds par niveau et tirage gaussien discret borné
+src/game/bounces.test.ts Bornes, distribution des parcours réels, cibles exactes et génération de secours
 src/game/engine.test.ts  Réflexions, parcours, niveaux, compteurs, temps et records
 src/platform/storage.ts Adaptateur de persistance versionné et validation des données
 src/components/Board.tsx Plateau SVG et sorties sous forme de vrais boutons
@@ -106,7 +108,7 @@ src/App.tsx              Menu, modes, tutoriel, partie, résultat, progrès et p
 src/styles.css           Design responsive, safe areas et animations réduites
 ```
 
-Modifier `LEVELS`, `OBSERVATION_MS`, `CORRECTION_MS` et `CHALLENGE_MS` dans le moteur pour ajuster l’expérience. Les règles ne dépendent ni du DOM ni de React. Pour ajouter un jeu, créer son moteur indépendant et sa vue, puis ajouter son entrée au catalogue `gameInfo`.
+Modifier `LEVELS`, `OBSERVATION_MS`, `CORRECTION_MS` et `CHALLENGE_MS` dans le moteur pour ajuster l’expérience. `BOUNCE_PROFILES` dans `src/game/bounces.ts` fixe, pour chaque niveau, le centre, l’écart-type et les deux bornes du nombre de rebonds. Les poids sont proportionnels à `exp(−0,5 × ((rebonds − centre) / écart-type)²)` et normalisés sur les entiers autorisés. Le tirage est effectué une seule fois par manche, puis le plateau est recherché pour cette cible exacte. Après 64 configurations infructueuses, une construction de secours place les miroirs supplémentaires hors du trajet et conserve cette cible ; elle évite une boucle ou un parcours plus difficile, même avec une source aléatoire dégénérée. Ce rééquilibrage s’applique à Survie et Défi ; les 17 niveaux, les points, le temps d’observation, les records et les niveaux acquis sont conservés. Les règles ne dépendent ni du DOM ni de React. Pour ajouter un jeu, créer son moteur indépendant et sa vue, puis ajouter son entrée au catalogue `gameInfo`.
 
 Les icônes viennent de Lucide. Les illustrations sont du SVG local ; les polices DM Sans et Nunito Sans sont livrées avec le bundle via Fontsource. Aucun CDN n’est nécessaire. Les licences des polices sont présentes dans leurs packages npm.
 

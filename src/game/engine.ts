@@ -1,3 +1,5 @@
+import { BOUNCE_PROFILES, sampleBounces } from './bounces';
+
 export type Side = 'top' | 'right' | 'bottom' | 'left';
 export type Direction = 'up' | 'right' | 'down' | 'left';
 export type Port = { side: Side; index: number };
@@ -64,10 +66,12 @@ export function simulate(size: number, mirrors: Mirror[], entry: Port): { exit: 
   return { exit, path, hits };
 }
 export function generateBoard(level: number, random: () => number = Math.random): Board {
-  const { size, mirrors: count } = LEVELS[Math.max(0,Math.min(MAX_LEVEL-1,level-1))];
-  const targetHits = Math.min(count,1+Math.floor(level/4));
-  let best: Board | undefined;
-  for (let attempt=0; attempt<600; attempt++) {
+  const index = Math.max(0, Math.min(MAX_LEVEL - 1, Math.floor(Number.isFinite(level) ? level : 1) - 1));
+  const { size, mirrors: count } = LEVELS[index];
+  // Draw exactly once: easier-to-generate routes must not bias the chosen difficulty.
+  const targetHits = sampleBounces(BOUNCE_PROFILES[index], random);
+  const ports: Port[] = (['top','right','bottom','left'] as Side[]).flatMap(side=>Array.from({length:size},(_,index)=>({side,index})));
+  for (let attempt=0; attempt<64; attempt++) {
     const cells = Array.from({length:size*size},(_,i)=>i);
     // Partial Fisher-Yates: guaranteed unique cells, including with seeded random sources.
     const mirrors: Mirror[] = [];
@@ -76,19 +80,40 @@ export function generateBoard(level: number, random: () => number = Math.random)
       [cells[i],cells[j]]=[cells[j],cells[i]];
       mirrors.push({row:Math.floor(cells[i]/size),col:cells[i]%size,slope:random()<.5?'/':'\\'});
     }
-    const ports: Port[] = (['top','right','bottom','left'] as Side[]).flatMap(side=>Array.from({length:size},(_,index)=>({side,index})));
     const offset = Math.floor(random()*ports.length);
     for (let p=0;p<ports.length;p++) {
       const entry=ports[(p+offset)%ports.length];
       const result=simulate(size,mirrors,entry);
-      if (!result || result.hits < 1) continue;
-      const candidate={size,mirrors,entry,...result};
-      if (!best || candidate.hits>best.hits) best=candidate;
-      if (result.hits>=targetHits) return candidate;
+      if (result?.hits === targetHits) return { size, mirrors, entry, ...result };
     }
   }
-  if (best) return best;
-  throw new Error('Impossible de générer un plateau valide.');
+  return fallbackBoard(size, count, targetHits, random);
+}
+
+// A finite constructive fallback also handles constant/degenerate random sources.
+// The staircase makes exactly targetHits turns; extra mirrors stay off the entire travelled route.
+function fallbackBoard(size: number, count: number, targetHits: number, random: () => number): Board {
+  let entry: Port = { side: 'top', index: 0 };
+  let mirrors: Mirror[] = Array.from({ length: targetHits }, (_, i) => ({ row: Math.floor(i / 2), col: Math.ceil(i / 2), slope: '\\' }));
+  const route = simulate(size, mirrors, entry);
+  if (!route || route.hits !== targetHits) throw new Error('Invalid fallback bounce route');
+  const visited = new Set(route.path.map(point => `${point.y - .5}:${point.x - .5}`));
+  const free = Array.from({ length: size * size }, (_, i) => i).filter(i => !visited.has(`${Math.floor(i / size)}:${i % size}`));
+  if (count - targetHits > free.length) throw new Error('Not enough off-route cells for mirrors');
+  for (let i = 0; i < count - targetHits; i++) {
+    const j = i + Math.floor(random() * (free.length - i));
+    [free[i], free[j]] = [free[j], free[i]];
+    mirrors.push({ row: Math.floor(free[i] / size), col: free[i] % size, slope: random() < .5 ? '/' : '\\' });
+  }
+  const rotations = Math.floor(random() * 4);
+  for (let i = 0; i < rotations; i++) {
+    mirrors = mirrors.map(mirror => ({ row: mirror.col, col: size - 1 - mirror.row, slope: mirror.slope === '/' ? '\\' : '/' }));
+    const sides: Side[] = ['top', 'right', 'bottom', 'left'];
+    entry = { side: sides[(sides.indexOf(entry.side) + 1) % 4], index: entry.side === 'right' || entry.side === 'left' ? size - 1 - entry.index : entry.index };
+  }
+  const result = simulate(size, mirrors, entry);
+  if (!result || result.hits !== targetHits) throw new Error('Invalid rotated fallback bounce route');
+  return { size, mirrors, entry, ...result };
 }
 export type Mode = 'survival' | 'challenge';
 export type Session = {
