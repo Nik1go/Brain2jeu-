@@ -97,7 +97,7 @@ Sur le PC, reconstruire avec `npm run release:vps` puis renvoyer l'archive et `i
 
 Les fichiers HTML et le service worker sont revalidés ; les assets Vite ont des noms contenant leur empreinte et peuvent rester en cache. Actualiser un onglet déjà ouvert pour voir une nouvelle version.
 
-Les progrès restent propres au navigateur et au domaine : les records de `localhost` ne sont pas transférés automatiquement au nouveau sous-domaine.
+Les comptes disposent d'une sauvegarde privée de progression selon [PROGRESS-SYNC.md](PROGRESS-SYNC.md). Le mode invité et les anciennes sauvegardes restent propres au navigateur et au domaine jusqu'à leur import volontaire depuis Profil ; les records de `localhost` ne sont pas transférés automatiquement au sous-domaine.
 
 ## Références
 

@@ -1,3 +1,5 @@
+> Mise à jour du 23 octobre 2026 : les règles Firebase de sauvegarde des progrès par compte sont publiées. Le nouveau front doit encore être installé sur le VPS. La migration et les vérifications figurent dans [PROGRESS-SYNC.md](PROGRESS-SYNC.md). Les mentions de stockage local seul ci-dessous décrivent la livraison initiale du portail.
+
 # Firebase pour Brain2jeu
 
 ## Correction du build VPS sans fichier local

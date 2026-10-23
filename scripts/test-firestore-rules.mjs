@@ -6,6 +6,7 @@ import { connectAuthEmulator, createUserWithEmailAndPassword, getAuth, sendPassw
 import { collection, connectFirestoreEmulator, deleteDoc, doc, getDoc, getDocs, getFirestore, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { testFriends } from './test-friends-rules.mjs';
 import { testLeaderboards } from './test-leaderboard-rules.mjs';
+import { testProgress } from './test-progress-rules.mjs';
 
 // This runner cannot reach production: it requires an explicit local emulator.
 if (!/^127\.0\.0\.1:\d+$/.test(process.env.FIRESTORE_EMULATOR_HOST || '') || !/^127\.0\.0\.1:\d+$/.test(process.env.FIREBASE_AUTH_EMULATOR_HOST || '')) {
@@ -62,6 +63,7 @@ try {
   assert.equal(results.filter(result => result.status === 'fulfilled').length, 1, 'Un seul joueur peut réserver un pseudo concurrent'); checks++;
   await testFriends(env, succeeds, fails);
   await testLeaderboards(env, succeeds, fails);
+  await testProgress(env, succeeds, fails);
   console.log(`${checks} contrôles Firestore réussis : profils privés et publics, schéma strict, droits, timestamps, réservations atomiques, amis et concurrence.`);
   const app = initializeApp({ projectId: 'demo-brain2jeu', apiKey: 'demo-brain2jeu-key', appId: 'demo-brain2jeu-app' }, 'auth-integration-test');
   try {

@@ -7,7 +7,7 @@ import { TrainPlay } from './TrainPlay';
 import { pointsPerTrain } from './scoring';
 import { advanceTrains, newTrainGame, spawnTrain, toggleJunction } from './simulation';
 import type { TrainGame } from './simulation';
-import { finishTrainGame, saveTrainProgress } from './storage';
+import { finishTrainGame } from './storage';
 import type { TrainProgress, TrainResult } from './storage';
 import { TrainBoard, tutorialDistance } from './TrainBoard';
 import { createTrainAudio } from './audio';
@@ -17,22 +17,22 @@ import './train-feedback.css';
 const format = (n: number) => n.toLocaleString('fr-FR');
 type Screen = 'levels' | 'tutorial' | 'game' | 'result' | 'settings';
 type Completed = { result: TrainResult; best: number; newRecord: boolean };
-export function TrainExperience({ progress, onProgress, onExit, sound, reducedMotion, initialTutorial = false, renderComparison, onLeaderboard, onGameStart }: {
+export function TrainExperience({ progress, onProgress, onExit, sound, reducedMotion, initialTutorial = false, renderComparison, onLeaderboard, onGameStart, storageError = false }: {
   progress: TrainProgress; onProgress: (p: TrainProgress) => void; onExit: () => void; sound: boolean; reducedMotion: boolean; initialTutorial?: boolean;
   renderComparison?: (result: TrainResult) => ReactNode; onLeaderboard?: () => void;
   onGameStart?: () => void;
+  storageError?: boolean;
 }) {
   const [screen, setScreen] = useState<Screen>(initialTutorial ? 'tutorial' : 'levels');
   const [level, setLevel] = useState(progress.unlocked);
   const [completed, setCompleted] = useState<Completed | null>(null);
-  const [storageError, setStorageError] = useState(false);
   const [tutorialReturn, setTutorialReturn] = useState<'game' | 'settings'>(initialTutorial ? 'settings' : 'game');
   const [gameKey, setGameKey] = useState(0);
   const previous = useRef<{ signature?: string; colors?: string[] }>({});
   const [audio] = useState(createTrainAudio);
   useEffect(() => () => audio.close(), [audio]);
   useEffect(() => { window.scrollTo(0, 0); }, [screen]);
-  const save = useCallback((next: TrainProgress) => { if (!saveTrainProgress(next)) setStorageError(true); onProgress(next); }, [onProgress]);
+  const save = useCallback((next: TrainProgress) => onProgress(next), [onProgress]);
   const start = (chosen = level) => {
     if (sound) audio.unlock();
     setLevel(chosen); setGameKey(k => k + 1);

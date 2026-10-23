@@ -10,24 +10,23 @@ import { createFinanceChoices, formatFinance } from './finance';
 import { advanceMathGame, answerMathGame, newMathGame } from './game';
 import type { MathGame, Question } from './game';
 import { accuracy } from './scoring';
-import { finishMathGame, saveMathProgress } from './storage';
+import { finishMathGame } from './storage';
 import type { MathProgress, MathResult } from './storage';
 import './math.css';
 
 const format = (n: number) => n.toLocaleString('fr-FR');
-export function MathExperience({ progress, onProgress, onExit, onTutorialExit, sound, reducedMotion, initialTutorial = false, renderComparison, onLeaderboard, onGameStart }: {
+export function MathExperience({ progress, onProgress, onExit, onTutorialExit, sound, reducedMotion, initialTutorial = false, renderComparison, onLeaderboard, onGameStart, storageError = false }: {
   progress: MathProgress; onProgress: (p: MathProgress) => void; onExit: () => void;
   onTutorialExit?: () => void; sound: boolean; reducedMotion: boolean; initialTutorial?: boolean;
   renderComparison?: (result: MathResult) => ReactNode; onLeaderboard?: () => void;
   onGameStart?: () => void;
+  storageError?: boolean;
 }) {
   const [screen, setScreen] = useState<'levels' | 'tutorial' | 'game' | 'result'>(initialTutorial ? 'tutorial' : 'levels');
   const [level, setLevel] = useState<MathLevelId>('small');
   const [completed, setCompleted] = useState<{ result: MathResult; newRecord: boolean } | null>(null);
-  const [storageError, setStorageError] = useState(false);
   const [gameKey, setGameKey] = useState(0);
   const save = useCallback((next: MathProgress) => {
-    if (!saveMathProgress(next)) setStorageError(true);
     onProgress(next);
   }, [onProgress]);
   const finish = useCallback((game: MathGame, id: string) => {

@@ -10,6 +10,9 @@ rules_version = '2';
 // friendships/{length:a + a + length:b + b}: sorted members [a,b], from, to,
 // status (pending/accepted), createdAt, updatedAt. Participants are immutable.
 // All reads require Auth; friendship reads require membership.
+// users/{uid}/saves/progress: private save envelope, version=1, payload string
+// (JSON, 1..150000 chars), updatedAt server timestamp. Payload is opaque private
+// game data, normalized by the client; it carries no authorization fields.
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
@@ -73,6 +76,13 @@ service cloud.firestore {
         && grows(a.mathLarge, b.mathLarge) && grows(a.mathFinance, b.mathFinance);
     }
     function validUid(uid) { return uid is string && uid.size() >= 1 && uid.size() <= 128 && !uid.matches('.*[/].*'); }
+    function validProgressSave(data) {
+      return data.keys().hasAll(['version', 'payload', 'updatedAt'])
+        && data.keys().hasOnly(['version', 'payload', 'updatedAt'])
+        && data.version is int && data.version == 1
+        && data.payload is string && data.payload.size() >= 1 && data.payload.size() <= 150000
+        && data.updatedAt == request.time;
+    }
     function validFriendship(data, id) {
       let m = data.members;
       return data.keys().hasAll(['members', 'from', 'to', 'status', 'createdAt', 'updatedAt'])
@@ -90,6 +100,13 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.usernameKey)).data.uid == uid;
       // No profile editing is exposed in this version. Deny update/delete explicitly.
       allow update, delete: if false;
+    }
+    match /users/{uid}/saves/{save} {
+      allow get: if isOwner(uid) && save == 'progress';
+      allow list, delete: if false;
+      allow create, update: if isOwner(uid) && save == 'progress'
+        && exists(/databases/$(database)/documents/users/$(uid))
+        && validProgressSave(request.resource.data);
     }
     match /usernames/{key} {
       allow get: if signedIn();

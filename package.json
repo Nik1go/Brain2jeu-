@@ -13,6 +13,7 @@
     "firebase:check-rules": "node scripts/check-firestore-rules.mjs",
     "firebase:emulators": "npx -y firebase-tools@latest emulators:start --only auth,firestore --project demo-brain2jeu",
     "test:firebase": "npx -y firebase-tools@latest emulators:exec --only auth,firestore --project demo-brain2jeu \"node scripts/test-firestore-rules.mjs\"",
+    "test:progress": "firebase emulators:exec --only auth,firestore --project demo-brain2jeu \"node scripts/test-progress-emulators.mjs\"",
     "native:sync": "npm run build && cap sync",
     "native:android": "cap add android",
     "native:ios": "cap add ios"

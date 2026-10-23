@@ -8,7 +8,9 @@ const auth = require('firebase-tools/lib/auth');
 const { requireAuth } = require('firebase-tools/lib/requireAuth');
 const rules = require('firebase-tools/lib/gcp/rules');
 const project = 'brain2jeu';
-const snapshot = process.argv.includes('--snapshot');
+const snapshotName = process.argv.find(arg => arg.startsWith('--snapshot-name='))?.split('=')[1];
+if (snapshotName && !/^[a-z0-9-]+$/.test(snapshotName)) throw new Error('Invalid snapshot name.');
+const snapshot = process.argv.includes('--snapshot') || Boolean(snapshotName);
 await requireAuth({ project, nonInteractive: true, ...auth.getProjectDefaultAccount(process.cwd()) });
 const releases = await rules.listAllReleases(project);
 const release = releases.find(item => item.name === `projects/${project}/releases/cloud.firestore`);
@@ -25,10 +27,11 @@ const report = {
   hasFriendships: remote.content.includes('match /friendships/{id}'),
   hasLeaderboards: remote.content.includes('match /leaderboards/{board}/entries/{uid}'),
   hasTrainProgress: remote.content.includes('validTrainProgress'),
+  hasPrivateProgress: remote.content.includes('match /users/{uid}/saves/{save}'),
 };
 const output = new URL('../artifacts/', import.meta.url);
 mkdirSync(output, { recursive: true });
-const prefix = snapshot ? 'firestore-rules-before-leaderboards' : 'firestore-rules-live';
+const prefix = snapshot ? `firestore-rules-before-${snapshotName || 'leaderboards'}` : 'firestore-rules-live';
 // A baseline snapshot is never silently replaced.
 writeFileSync(new URL(`${prefix}.json`, output), JSON.stringify(report, null, 2) + '\n', { flag: snapshot ? 'wx' : 'w' });
 if (snapshot) writeFileSync(new URL(`${prefix}.rules`, output), remote.content, { flag: 'wx' });

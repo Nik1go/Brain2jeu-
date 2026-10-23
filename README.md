@@ -9,7 +9,7 @@ fournisseurs e-mail et Google activés, d’une base Firestore Standard à Paris
 des règles déployées. Le portail est publié sur
 [brain2jeu.leofinance.fr](https://brain2jeu.leofinance.fr/).
 Voir [la configuration et son état vérifié](deploy/FIREBASE.md). Les jeux restent
-accessibles sans compte et leurs scores restent locaux à l’appareil.
+accessibles sans compte avec une progression locale. Le correctif de sauvegarde par compte et son déploiement sont décrits dans [l’audit de synchronisation](deploy/PROGRESS-SYNC.md).
 
 ## Démarrage
 
@@ -91,7 +91,7 @@ Les tests épuisent toutes les combinaisons d’aiguillages pour les huit niveau
 - **Difficulté** : 17 niveaux configurables, à partir de deux miroirs sur une grille 3×3, plateau limité à 6×6. Le nombre de rebonds est tiré selon une loi gaussienne discrète bornée, dont la moyenne augmente à chaque niveau. Le niveau 5 vise environ 2 rebonds (1–3 autorisés), le niveau 8 en vise 3 (2–4 autorisés). À partir du niveau 8, la moyenne augmente de **0,5 rebond par niveau** : 3,5 au niveau 9, 4 au niveau 10, jusqu’à 7,5 au niveau 17. Des bornes symétriques conservent exactement ces moyennes dans la distribution théorique. Chaque plateau a un nombre entier de rebonds. Le générateur respecte le nombre exact tiré, sans retenir un parcours plus long. Les positions de miroirs sont uniques et les parcours sont vérifiés avec détection de cycles.
 - **Score** : `100 + 25 × (niveau − 1) + max(0, 50 − 5 × floor(secondes de réponse))`.
 - **Records** : Survie séparée du Défi, et Défi séparé par niveau. Les anciens records Défi 120 s sont archivés séparément des nouveaux records 90 s. Le tutoriel ne produit aucun résultat.
-- **Données locales de jeu** : niveaux débloqués, tutoriel, préférences, records et 100 dernières parties. Les statistiques et jours de jeu sont calculés sur cet historique. Les comptes optionnels utilisent Firebase Auth et un profil Firestore privé ; aucune synchronisation des scores entre appareils n’est incluse.
+- **Données locales de jeu** : niveaux débloqués, tutoriel, préférences, records et 100 dernières parties. Les statistiques et jours de jeu sont calculés sur cet historique. Les comptes optionnels utilisent Firebase Auth et une sauvegarde Firestore privée : niveaux, records, tutoriels et historique sont fusionnés entre appareils. Les anciennes sauvegardes du navigateur sont importables depuis Profil. Voir [les limites et le déploiement](deploy/PROGRESS-SYNC.md).
 - Le bouton Pause suspend le chronomètre, le temps de réponse, l’observation et les animations. Reprendre continue la même manche ; Recommencer relance une nouvelle partie du même mode ; Quitter abandonne la partie. Sans pause manuelle, un onglet en arrière-plan ne met pas le Défi en pause.
 
 ## Architecture

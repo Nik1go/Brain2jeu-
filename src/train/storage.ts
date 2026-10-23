@@ -8,11 +8,14 @@ export interface TrainProgress { version: 1; unlocked: number; tutorialDone: boo
 export const emptyTrainProgress = (): TrainProgress => ({ version: 1, unlocked: 1, tutorialDone: false, best: {}, history: [] });
 const validScore = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0 && Number.isInteger(v);
 export function loadTrainProgress(): TrainProgress {
+  try { return parseTrainProgress(localStorage.getItem(TRAIN_STORAGE_KEY)); } catch { return emptyTrainProgress(); }
+}
+export function parseTrainProgress(raw: string | null): TrainProgress {
   try {
-    const p = JSON.parse(localStorage.getItem(TRAIN_STORAGE_KEY) ?? 'null');
+    const p = JSON.parse(raw ?? 'null');
     if (!p || p.version !== 1) return emptyTrainProgress();
     const best = Object.fromEntries(Object.entries(p.best && typeof p.best === 'object' ? p.best : {}).filter(([k, v]) => Number.isInteger(Number(k)) && Number(k) >= 1 && Number(k) <= TRAIN_LEVELS.length && validScore(v)));
-    return { version: 1, unlocked: Number.isInteger(p.unlocked) ? Math.max(1, Math.min(TRAIN_LEVELS.length, p.unlocked)) : 1, tutorialDone: p.tutorialDone === true, best: best as Record<string, number>, history: Array.isArray(p.history) ? p.history.filter((h: TrainResult) => h && typeof h.id === 'string' && typeof h.date === 'string' && Number.isFinite(Date.parse(h.date)) && Number.isInteger(h.level) && h.level >= 1 && h.level <= TRAIN_LEVELS.length && validScore(h.score) && validScore(h.correct) && validScore(h.delivered) && validScore(h.errors) && h.correct + h.errors === h.delivered && h.passed === levelPassed(h.errors)).slice(-100) : [] };
+    return { version: 1, unlocked: Number.isInteger(p.unlocked) ? Math.max(1, Math.min(TRAIN_LEVELS.length, p.unlocked)) : 1, tutorialDone: p.tutorialDone === true, best: best as Record<string, number>, history: Array.isArray(p.history) ? p.history.filter((h: TrainResult) => h && typeof h.id === 'string' && h.id.length<=128 && typeof h.date === 'string' && h.date.length<=40 && Number.isFinite(Date.parse(h.date)) && Number.isInteger(h.level) && h.level >= 1 && h.level <= TRAIN_LEVELS.length && validScore(h.score) && validScore(h.correct) && validScore(h.delivered) && validScore(h.errors) && h.correct + h.errors === h.delivered && h.passed === levelPassed(h.errors)).slice(-100).map((h:TrainResult)=>({id:h.id,date:h.date,level:h.level,score:h.score,correct:h.correct,delivered:h.delivered,errors:h.errors,passed:h.passed})) : [] };
   } catch { return emptyTrainProgress(); }
 }
 export function saveTrainProgress(progress: TrainProgress): boolean {
